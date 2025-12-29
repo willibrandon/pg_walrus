@@ -54,4 +54,6 @@ Schedule-aware configuration for different workload patterns.
 - Requires serde_json and chrono crates
 
 ## Reference
-- Feature index: `features/README.md`
+- **pg_walsizer source**: `pg_walsizer/walsizer.c` - Reference for GUC patterns to override
+- **Enhancements design**: `ENHANCEMENTS_PROPOSAL.md` - Section 4.1 Time-Based Profiles
+- **Feature index**: `features/README.md`

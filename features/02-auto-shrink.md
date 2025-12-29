@@ -24,4 +24,6 @@ Automatically decrease `max_wal_size` when workload decreases, preventing perman
 - Requires core extension (feature 01)
 
 ## Reference
-- Feature index: `features/README.md`
+- **pg_walsizer source**: `pg_walsizer/walsizer.c` - Reference for checkpoint monitoring patterns
+- **Enhancements design**: `ENHANCEMENTS_PROPOSAL.md` - Section 2.1 Auto-Shrink
+- **Feature index**: `features/README.md`

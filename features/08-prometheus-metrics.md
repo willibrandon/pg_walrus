@@ -49,4 +49,6 @@ walrus_enabled {} 1
 - Requires core extension (feature 01)
 
 ## Reference
-- Feature index: `features/README.md`
+- **pg_walsizer source**: `pg_walsizer/walsizer.c` - Reference for metrics to expose
+- **Enhancements design**: `ENHANCEMENTS_PROPOSAL.md` - Section 3.4 Prometheus Metrics
+- **Feature index**: `features/README.md`

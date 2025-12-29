@@ -38,4 +38,6 @@ Resets extension state (clears history, counters)
 - walrus_history() requires history table (feature 04)
 
 ## Reference
-- Feature index: `features/README.md`
+- **pg_walsizer source**: `pg_walsizer/walsizer.c` - Reference for internal state to expose
+- **Enhancements design**: `ENHANCEMENTS_PROPOSAL.md` - Section 2.2 SQL Observability
+- **Feature index**: `features/README.md`

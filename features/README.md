@@ -2,6 +2,18 @@
 
 Feature documents for `/speckit.specify` workflow. Each file is optimized to be passed as `$ARGUMENTS`.
 
+## Reference Implementation
+
+The original C implementation (`pg_walsizer/`) serves as the reference for the Rust rewrite. Use it during all speckit phases:
+
+| File | Purpose |
+|------|---------|
+| `pg_walsizer/walsizer.c` | Core logic, background worker, GUC registration |
+| `pg_walsizer/walsizer.h` | Header with exports |
+| `pg_walsizer/README.md` | Original documentation |
+| `CONVERSION_PROPOSAL.md` | C-to-Rust API mappings and design decisions |
+| `ENHANCEMENTS_PROPOSAL.md` | New features beyond the original |
+
 ## Usage
 
 ```bash

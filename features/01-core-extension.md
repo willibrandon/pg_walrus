@@ -28,6 +28,7 @@ Rewrite pg_walsizer as pg_walrus using Rust and the pgrx framework.
 - `version_compat.rs` - PG version handling
 
 ## Reference
-- Original C implementation: `pg_walsizer/walsizer.c`
-- Conversion design: `CONVERSION_PROPOSAL.md`
-- Feature index: `features/README.md`
+- **pg_walsizer source**: `pg_walsizer/walsizer.c` - Use as reference for background worker, GUC registration, and core logic
+- **pg_walsizer header**: `pg_walsizer/walsizer.h`
+- **Conversion design**: `CONVERSION_PROPOSAL.md` - C-to-Rust API mappings
+- **Feature index**: `features/README.md`

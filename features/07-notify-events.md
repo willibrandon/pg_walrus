@@ -37,4 +37,6 @@ LISTEN walrus_events;
 - Requires core extension (feature 01)
 
 ## Reference
-- Feature index: `features/README.md`
+- **pg_walsizer source**: `pg_walsizer/walsizer.c` - Reference for event points to notify
+- **Enhancements design**: `ENHANCEMENTS_PROPOSAL.md` - Section 3.3 NOTIFY Integration
+- **Feature index**: `features/README.md`

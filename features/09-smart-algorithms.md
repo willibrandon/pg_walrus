@@ -44,4 +44,6 @@ pub enum SizingAlgorithm {
 - Adaptive/Percentile require sample storage (in-memory or history table)
 
 ## Reference
-- Feature index: `features/README.md`
+- **pg_walsizer source**: `pg_walsizer/walsizer.c` - Reference for original multiplicative algorithm
+- **Enhancements design**: `ENHANCEMENTS_PROPOSAL.md` - Section 3.1 Smarter Algorithms
+- **Feature index**: `features/README.md`

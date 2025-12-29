@@ -50,4 +50,6 @@ pub extern "C" fn _PG_init() {
 - Enhances all other features with persistent state
 
 ## Reference
-- Feature index: `features/README.md`
+- **pg_walsizer source**: `pg_walsizer/walsizer.c` - Reference for state to persist
+- **Enhancements design**: `ENHANCEMENTS_PROPOSAL.md` - Section 4.4 Shared Memory
+- **Feature index**: `features/README.md`
