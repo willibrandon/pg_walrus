@@ -38,9 +38,9 @@ LOG:  parameter "max_wal_size" changed to "2560"
 - **History Table**: Full audit trail of all sizing adjustments in `walrus.history`
 - **SQL Functions**: Query status, history, and recommendations; trigger immediate analysis
 - **Dry-Run Mode**: Test behavior without making changes (`walrus.dry_run = true`)
+- **Rate Limiting**: Prevent thrashing with cooldown periods and hourly adjustment limits
 
 ### Planned
-- **Rate Limiting**: Prevent thrashing on unstable workloads
 - **NOTIFY Events**: Real-time notifications on adjustments
 - **Prometheus Metrics**: Standard monitoring integration
 - **Smart Algorithms**: Multiple sizing strategies (adaptive, percentile)
@@ -146,6 +146,13 @@ pg_ctl restart -D $PGDATA
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `walrus.dry_run` | `false` | Log decisions without executing ALTER SYSTEM |
+
+### Rate Limiting Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `walrus.cooldown_sec` | `300` | Minimum seconds between adjustments (0-86400) |
+| `walrus.max_changes_per_hour` | `4` | Maximum adjustments per rolling hour (0-1000) |
 
 All parameters require `SIGHUP` to take effect (no restart needed).
 

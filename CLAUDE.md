@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 pg_walrus is a Rust rewrite (using pgrx) of pg_walsizer - a PostgreSQL extension that automatically monitors and adjusts `max_wal_size` to prevent performance-degrading forced checkpoints. The name comes from WAL + Rust = Walrus.
 
-**Current state**: The Rust implementation is complete with 105 pgrx tests and 10 pg_regress tests passing across PostgreSQL 15-18.
+**Current state**: The Rust implementation is complete with 121 pgrx tests and 11 pg_regress tests passing across PostgreSQL 15-18.
 
 ## No Regression Policy
 
@@ -953,6 +953,13 @@ src/
 |-----------|---------|-------------|
 | `walrus.dry_run` | false | Log decisions without executing ALTER SYSTEM |
 
+### Rate Limiting Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `walrus.cooldown_sec` | 300 | Minimum seconds between adjustments (0-86400) |
+| `walrus.max_changes_per_hour` | 4 | Maximum adjustments per rolling hour (0-1000) |
+
 ### Database Connection
 
 | Parameter | Default | Description |
@@ -1006,6 +1013,7 @@ Supports PostgreSQL 15+ due to `pgstat_fetch_stat_checkpointer()` API. Version-s
 - PostgreSQL shared memory (ephemeral), walrus.history table (persistent) (006-rate-limiting)
 
 ## Recent Changes
+- 006-rate-limiting: Added cooldown period and hourly limit for max_wal_size adjustments
 - 005-dry-run-mode: Added dry-run mode for testing without config changes
 - 004-sql-observability-functions: Added SQL functions for monitoring and manual control
 - 003-history-table: Added PostgreSQL table (`walrus.history`) with BIGSERIAL primary key, TIMESTAMPTZ, JSONB
