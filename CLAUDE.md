@@ -59,6 +59,28 @@ This project enforces a strict no-deferral policy. When working on tasks:
 - Scope deferral: "out of scope", "beyond scope", "not in scope"
 - Minimizing: "basic implementation", "simplified version", "for now"
 
+**ABSOLUTELY PROHIBITED - False Impossibility Claims:**
+- "This test cannot run because..."
+- "This can't be tested here"
+- "There's no way to test this"
+- "The test is fundamentally impossible"
+- ANY claim that something is impossible
+
+**You have NO excuse for claiming impossibility. You have:**
+- `/Users/brandon/src/pgrx/` - Full pgrx source code with examples
+- `/Users/brandon/src/postgres/` - Full PostgreSQL source code
+- `pg_settings` system catalog with min_val, max_val, vartype columns
+- The ability to read ANY file and find the correct approach
+
+**When a test fails:**
+1. Read the pgrx source to understand how it works
+2. Read the PostgreSQL source to understand the underlying behavior
+3. Query system catalogs (pg_settings, pg_catalog) for metadata
+4. Try alternative SQL syntax or testing approaches
+5. The answer EXISTS in the source code. FIND IT.
+
+**NOTHING is impossible. You have the source code. Read it and fix your approach.**
+
 **REQUIRED behavior:**
 - Complete all assigned work in full. No exceptions.
 - Implement all edge cases and error handling immediately.

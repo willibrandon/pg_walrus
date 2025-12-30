@@ -190,6 +190,17 @@ pub mod pg_test {
 3. Delete `target/test-pgdata/` before running tests if config changed
 4. Verify `postgresql.auto.conf` contains correct settings
 
+## No False Impossibility Claims (Constitution XVI)
+
+Claiming that tests or implementations are "impossible" is PROHIBITED. You have full source code access.
+
+**You have NO excuse for claiming impossibility:**
+- `/Users/brandon/src/pgrx/` - Full pgrx source code with examples and tests
+- `/Users/brandon/src/postgres/` - Full PostgreSQL source code with implementation details
+- `pg_settings` system catalog with `min_val`, `max_val`, `vartype`, `context` columns
+
+**The test/implementation is NEVER impossible. The approach is wrong. Fix the approach.**
+
 ## pgrx Reference
 
 **Local pgrx Repository**: `/Users/brandon/src/pgrx/`

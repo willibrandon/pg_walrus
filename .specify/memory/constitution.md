@@ -1,20 +1,20 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 1.6.0 → 1.7.0
-Bump rationale: MINOR - Added XV. File Size Limits principle enforcing 900 LOC maximum
+Version change: 1.7.0 → 1.8.0
+Bump rationale: MINOR - Added XVI. No False Impossibility Claims principle
 
 Modified principles: None
 
 Added sections:
-- XV. File Size Limits - Source code files MUST NOT exceed 900 lines of code
+- XVI. No False Impossibility Claims - Prohibits claiming tests/code are impossible when source code is available
 
 Removed sections: None
 
 Templates status:
-- ✅ plan-template.md - Compatible (no file size specifics)
-- ✅ spec-template.md - Compatible (no file size specifics)
-- ✅ tasks-template.md - Compatible (no file size specifics)
+- ✅ plan-template.md - Compatible (no impossibility specifics)
+- ✅ spec-template.md - Compatible (no impossibility specifics)
+- ✅ tasks-template.md - Compatible (no impossibility specifics)
 
 Follow-up: None
 -->
@@ -713,6 +713,42 @@ Source code files MUST NOT exceed 900 lines of code. Large files indicate poor m
 
 **Rationale**: Large files are difficult to navigate, understand, and maintain. They indicate that a module has too many responsibilities. Enforcing a hard limit forces proactive modularization and results in more focused, testable code units.
 
+### XVI. No False Impossibility Claims (NON-NEGOTIABLE)
+
+Claiming that tests or implementations are "impossible" is PROHIBITED. You have full source code access. Find the correct approach.
+
+**ABSOLUTE PROHIBITION:**
+- "This test cannot run because..."
+- "This can't be tested here"
+- "There's no way to test this"
+- "The test is fundamentally impossible"
+- "This approach won't work"
+- ANY claim that something is impossible without exhaustive proof
+
+**You have NO excuse for claiming impossibility. Available resources:**
+- `/Users/brandon/src/pgrx/` - Full pgrx source code with examples and tests
+- `/Users/brandon/src/postgres/` - Full PostgreSQL source code with implementation details
+- `pg_settings` system catalog with `min_val`, `max_val`, `vartype`, `context` columns
+- `pg_catalog` schema with complete PostgreSQL metadata
+- The ability to read ANY file and find the correct approach
+
+**When a test fails or an approach seems blocked:**
+1. Read the pgrx source to understand how it actually works
+2. Read the PostgreSQL source to understand the underlying behavior
+3. Query system catalogs (`pg_settings`, `pg_catalog`) for metadata
+4. Try alternative SQL syntax, different test approaches, or different APIs
+5. Search pgrx-examples for similar patterns
+6. The answer EXISTS in the source code. FIND IT.
+
+**The test/implementation is NEVER impossible. The approach is wrong. Fix the approach.**
+
+**If genuinely blocked after 5+ different approaches:**
+- State `BLOCKER: Attempted [specific list of approaches], all failed because [specific errors from each]`
+- Include file paths and line numbers from source code research
+- This MUST demonstrate exhaustive investigation, not assumption
+
+**Rationale**: With full source code for both pgrx and PostgreSQL available locally, there is no excuse for claiming something is impossible. The correct solution exists in the source code. Claiming impossibility without exhaustive investigation is intellectual laziness.
+
 ## Additional Constraints
 
 ### Technology Stack
@@ -780,4 +816,4 @@ This constitution supersedes all other practices. Amendments require:
 
 **Guidance File**: See `CLAUDE.md` for runtime development guidance.
 
-**Version**: 1.7.0 | **Ratified**: 2025-12-29 | **Last Amended**: 2025-12-30
+**Version**: 1.8.0 | **Ratified**: 2025-12-29 | **Last Amended**: 2025-12-30
