@@ -97,6 +97,31 @@ When a test fails, you MUST:
 - "Adjust expectations"
 - "Be more lenient"
 
+## Git Attribution Policy
+
+Commit messages MUST NOT contain AI assistant attribution or co-authorship claims.
+
+**ABSOLUTE PROHIBITION:**
+- `Co-Authored-By: Claude` (any variant)
+- `Co-Authored-By: Claude Code` (any variant)
+- `Co-Authored-By: Anthropic` (any variant)
+- Any AI/LLM co-authorship attribution
+- Any Claude attribution in commit messages
+- Any mention of AI assistance in commit metadata
+- Generated with markers (e.g., "Generated with Claude Code")
+- Robot emoji indicators of AI involvement
+
+**Commit Message Format:**
+- Focus on WHAT changed and WHY
+- Use conventional commit format when appropriate
+- No attribution to tools or assistants
+- No emoji decorations unless project style requires them
+
+**REQUIRED:**
+- Commit messages describe the change, not who/what made it
+- Focus on technical content and rationale
+- Follow project's existing commit message conventions
+
 ## Build Commands
 
 ### Original C Extension (pg_walsizer)

@@ -1,27 +1,18 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 1.0.0 → 1.1.0
-Bump rationale: MINOR - Significant expansion of pgrx best practices principles
+Version change: 1.2.0 → 1.3.0
+Bump rationale: MINOR - New principle added (Git Attribution)
 
-Modified principles:
-- II. PostgreSQL Extension Safety → II. FFI Boundary Safety (expanded with #[pg_guard] details)
-- III. pgrx Idioms → split into multiple specialized sections
+Modified principles: None
 
 Added sections:
-- III. Memory Management (new - PgBox, AllocatedBy semantics, memory contexts)
-- IV. Background Worker Patterns (expanded from pgrx Idioms)
-- V. GUC Configuration (expanded from pgrx Idioms)
-- VI. SPI & Database Access (new)
-- VII. Version Compatibility (expanded from pgrx Idioms)
-- VIII. Test Discipline (expanded with pgrx-specific patterns)
-- IX. Anti-Patterns (new - critical mistakes to avoid)
-- X. Observability (renumbered)
+- XII. Git Attribution (new - prohibits Claude attribution in commit messages)
 
 Removed sections: None
 
 Templates status:
-- ✅ plan-template.md - Constitution Check section compatible
+- ✅ plan-template.md - Compatible structure
 - ✅ spec-template.md - Compatible structure
 - ✅ tasks-template.md - Compatible structure
 
@@ -459,6 +450,80 @@ All significant operations MUST be observable for debugging and monitoring.
 
 **Rationale**: DBAs need visibility into extension behavior for troubleshooting and capacity planning.
 
+### XI. Test Failure Protocol (NON-NEGOTIABLE)
+
+When a test fails, the implementation MUST be fixed. Tests define the specification.
+
+**ABSOLUTE PROHIBITION:**
+- "I can make the test more lenient"
+- "We could relax the assertion"
+- "This test is too strict"
+- "Let me adjust the test expectations"
+- "For now, let's just skip this test case"
+- "This is flaky"
+- "This is tricky"
+- Any suggestion to weaken, skip, or bypass tests
+
+**ROOT CAUSE ANALYSIS REQUIRED:**
+
+When a test fails, you MUST:
+1. Identify the exact code causing the failure
+2. Trace execution to find the root cause
+3. Fix the implementation, never the test
+4. Re-run tests to verify the fix
+5. If the test uncovers a design flaw, state `BLOCKER: [specific design issue]` and request clarification
+
+**Test Integrity Non-Negotiable:**
+- Tests define the specification. Implementation MUST meet tests.
+- A test failure indicates a gap between specification and implementation.
+- Specification gaps MUST be resolved through code changes, never through relaxed tests.
+- Tests are the contract. The contract never changes to accommodate weak implementations.
+
+**When Tests Fail:**
+- Ask: "What is the actual vs expected behavior?"
+- Ask: "Which code path causes this difference?"
+- Ask: "What must change in the implementation?"
+- Do NOT ask: "Should we relax this test?"
+
+**Red Flag Phrases (NEVER USE):**
+- "We can relax this"
+- "Make it more lenient"
+- "For now, let's accept"
+- "We can skip this case"
+- "This test is overly strict"
+- "Weaken the assertions"
+- "Adjust expectations"
+- "Be more lenient"
+
+**Rationale**: Tests encode the specification. Weakening tests to accommodate broken implementations defeats the purpose of testing and allows bugs to ship. Root cause analysis ensures the implementation meets requirements.
+
+### XII. Git Attribution (NON-NEGOTIABLE)
+
+Commit messages MUST NOT contain AI assistant attribution or co-authorship claims.
+
+**ABSOLUTE PROHIBITION:**
+- `Co-Authored-By: Claude` (any variant)
+- `Co-Authored-By: Claude Code` (any variant)
+- `Co-Authored-By: Anthropic` (any variant)
+- Any AI/LLM co-authorship attribution
+- Any Claude attribution in commit messages
+- Any mention of AI assistance in commit metadata
+- Generated with markers (e.g., "Generated with Claude Code")
+- Robot emoji indicators of AI involvement
+
+**Commit Message Format:**
+- Focus on WHAT changed and WHY
+- Use conventional commit format when appropriate
+- No attribution to tools or assistants
+- No emoji decorations unless project style requires them
+
+**REQUIRED:**
+- Commit messages describe the change, not who/what made it
+- Focus on technical content and rationale
+- Follow project's existing commit message conventions
+
+**Rationale**: Commit history documents code changes, not tooling. Attribution in commits clutters history, provides no technical value, and shifts focus from the change itself to how it was produced.
+
 ## Additional Constraints
 
 ### Technology Stack
@@ -526,4 +591,4 @@ This constitution supersedes all other practices. Amendments require:
 
 **Guidance File**: See `CLAUDE.md` for runtime development guidance.
 
-**Version**: 1.1.0 | **Ratified**: 2025-12-29 | **Last Amended**: 2025-12-29
+**Version**: 1.3.0 | **Ratified**: 2025-12-29 | **Last Amended**: 2025-12-29
