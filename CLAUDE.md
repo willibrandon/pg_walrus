@@ -8,6 +8,22 @@ pg_walrus is a Rust rewrite (using pgrx) of pg_walsizer - a PostgreSQL extension
 
 **Current state**: The repository contains the original C implementation (pg_walsizer) and design documents for the Rust conversion. The Rust implementation has not yet been created.
 
+## No Simplification Policy
+
+**ABSOLUTE PROHIBITION:**
+- The word "simplify" and all its forms (simplifying, simplified, simpler, simplification)
+- Removing tests that fail instead of fixing them
+- Reducing scope when encountering difficulty
+- "Let's just..." followed by a reduced approach
+- Removing features or tests to make things "work"
+- Any reduction in functionality to avoid debugging
+
+**REQUIRED behavior:**
+- When something doesn't work, debug it until it works
+- When a test fails, fix the implementation to pass the test
+- When encountering difficulty, increase effort, not decrease scope
+- Maintain all originally intended functionality
+
 ## No Deferral Policy
 
 This project enforces a strict no-deferral policy. When working on tasks:
@@ -193,6 +209,16 @@ Supports PostgreSQL 15+ due to `pgstat_fetch_stat_checkpointer()` API. Version-s
   - `pgrx-examples/` - Example extensions
   - `pgrx-macros/` - Procedural macros
   - `pgrx-pg-sys/` - PostgreSQL bindings
+
+**PostgreSQL Source**: `/Users/brandon/src/postgres/`
+- The PostgreSQL source code is cloned locally for reference
+- Use this to look up internal APIs, struct definitions, and implementation details
+- Key directories for this extension:
+  - `src/backend/postmaster/checkpointer.c` - Checkpointer process implementation
+  - `src/backend/postmaster/bgworker.c` - Background worker infrastructure
+  - `src/backend/utils/misc/guc.c` - GUC (Grand Unified Configuration) system
+  - `src/include/pgstat.h` - Statistics collector definitions
+  - `src/backend/commands/variable.c` - ALTER SYSTEM implementation
 
 ## Active Technologies
 - Rust 1.83+ (latest stable, edition 2024) + pgrx 0.16.1, libc (FFI compatibility) (001-pgrx-core-rewrite)

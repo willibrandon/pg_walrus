@@ -80,3 +80,19 @@ If the user supplies partial updates (e.g., only one principle revision), still 
 If critical info missing (e.g., ratification date truly unknown), insert `TODO(<FIELD_NAME>): explanation` and include in the Sync Impact Report under deferred items.
 
 Do not create a new template; always operate on the existing `.specify/memory/constitution.md` file.
+
+## pgrx Reference
+
+**Local pgrx Repository**: `/Users/brandon/src/pgrx/`
+- Consult this repository for pgrx API patterns, examples, and best practices when updating constitution for pgrx projects
+
+## PostgreSQL Reference
+
+**Local PostgreSQL Source**: `/Users/brandon/src/postgres/`
+- Consult this repository for PostgreSQL internal APIs, struct definitions, and implementation details
+- Key directories for extension development:
+  - `src/backend/postmaster/checkpointer.c` - Checkpointer process implementation
+  - `src/backend/postmaster/bgworker.c` - Background worker infrastructure
+  - `src/backend/utils/misc/guc.c` - GUC (Grand Unified Configuration) system
+  - `src/include/pgstat.h` - Statistics collector definitions
+  - `src/backend/commands/variable.c` - ALTER SYSTEM implementation

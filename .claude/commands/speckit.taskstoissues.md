@@ -28,3 +28,19 @@ git config --get remote.origin.url
 
 > [!CAUTION]
 > UNDER NO CIRCUMSTANCES EVER CREATE ISSUES IN REPOSITORIES THAT DO NOT MATCH THE REMOTE URL
+
+## pgrx Reference
+
+**Local pgrx Repository**: `/Users/brandon/src/pgrx/`
+- Consult this repository for pgrx API patterns, examples, and best practices when creating issues for pgrx-related tasks
+
+## PostgreSQL Reference
+
+**Local PostgreSQL Source**: `/Users/brandon/src/postgres/`
+- Consult this repository for PostgreSQL internal APIs, struct definitions, and implementation details
+- Key directories for extension development:
+  - `src/backend/postmaster/checkpointer.c` - Checkpointer process implementation
+  - `src/backend/postmaster/bgworker.c` - Background worker infrastructure
+  - `src/backend/utils/misc/guc.c` - GUC (Grand Unified Configuration) system
+  - `src/include/pgstat.h` - Statistics collector definitions
+  - `src/backend/commands/variable.c` - ALTER SYSTEM implementation

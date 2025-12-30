@@ -1,13 +1,13 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 1.2.0 → 1.3.0
-Bump rationale: MINOR - New principle added (Git Attribution)
+Version change: 1.3.0 → 1.4.0
+Bump rationale: MINOR - New principle added (No Simplification)
 
 Modified principles: None
 
 Added sections:
-- XII. Git Attribution (new - prohibits Claude attribution in commit messages)
+- XIII. No Simplification (new - prohibits reducing scope or removing functionality to avoid debugging)
 
 Removed sections: None
 
@@ -524,6 +524,26 @@ Commit messages MUST NOT contain AI assistant attribution or co-authorship claim
 
 **Rationale**: Commit history documents code changes, not tooling. Attribution in commits clutters history, provides no technical value, and shifts focus from the change itself to how it was produced.
 
+### XIII. No Simplification (NON-NEGOTIABLE)
+
+When encountering difficulty, increase effort. Never reduce scope.
+
+**ABSOLUTE PROHIBITION:**
+- The word "simplify" and all its forms (simplifying, simplified, simpler, simplification)
+- Removing tests that fail instead of fixing them
+- Reducing scope when encountering difficulty
+- "Let's just..." followed by a reduced approach
+- Removing features or tests to make things "work"
+- Any reduction in functionality to avoid debugging
+
+**REQUIRED behavior:**
+- When something doesn't work, debug it until it works
+- When a test fails, fix the implementation to pass the test
+- When encountering difficulty, increase effort, not decrease scope
+- Maintain all originally intended functionality
+
+**Rationale**: Reducing scope to avoid difficulty produces incomplete software. Debugging and fixing problems is the work. Removing functionality to make problems disappear hides rather than solves them.
+
 ## Additional Constraints
 
 ### Technology Stack
@@ -591,4 +611,4 @@ This constitution supersedes all other practices. Amendments require:
 
 **Guidance File**: See `CLAUDE.md` for runtime development guidance.
 
-**Version**: 1.3.0 | **Ratified**: 2025-12-29 | **Last Amended**: 2025-12-29
+**Version**: 1.4.0 | **Ratified**: 2025-12-29 | **Last Amended**: 2025-12-29

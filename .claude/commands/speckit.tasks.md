@@ -150,3 +150,14 @@ Every task MUST strictly follow this format:
 - Key directories:
   - `pgrx/` - Core framework code
   - `pgrx-examples/` - Example extensions demonstrating patterns
+
+## PostgreSQL Reference
+
+**Local PostgreSQL Source**: `/Users/brandon/src/postgres/`
+- Consult this repository for PostgreSQL internal APIs, struct definitions, and implementation details
+- Key directories for extension development:
+  - `src/backend/postmaster/checkpointer.c` - Checkpointer process implementation
+  - `src/backend/postmaster/bgworker.c` - Background worker infrastructure
+  - `src/backend/utils/misc/guc.c` - GUC (Grand Unified Configuration) system
+  - `src/include/pgstat.h` - Statistics collector definitions
+  - `src/backend/commands/variable.c` - ALTER SYSTEM implementation
