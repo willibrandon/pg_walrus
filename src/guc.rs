@@ -8,9 +8,11 @@
 //! - `walrus.shrink_factor`: Multiplication factor when shrinking (0.01-0.99)
 //! - `walrus.shrink_intervals`: Quiet intervals before triggering shrink
 //! - `walrus.min_size`: Minimum floor for max_wal_size (in MB)
+//! - `walrus.history_retention_days`: Days to retain history records before cleanup
 
 use pgrx::guc::{GucContext, GucFlags, GucRegistry, GucSetting};
 use pgrx::pg_sys;
+use std::ffi::CString;
 
 // =========================================================================
 // Grow GUC Parameters
@@ -56,9 +58,29 @@ pub static WALRUS_SHRINK_INTERVALS: GucSetting<i32> = GucSetting::<i32>::new(5);
 /// Default: 1024 (1GB), Min: 2 MB, Max: i32::MAX MB
 pub static WALRUS_MIN_SIZE: GucSetting<i32> = GucSetting::<i32>::new(1024);
 
+// =========================================================================
+// History GUC Parameters
+// =========================================================================
+
+/// Days to retain history records before automatic cleanup.
+/// Records older than this are deleted by cleanup_history().
+/// Default: 7, Min: 0 (delete all), Max: 3650 (10 years)
+pub static WALRUS_HISTORY_RETENTION_DAYS: GucSetting<i32> = GucSetting::<i32>::new(7);
+
+// =========================================================================
+// Database GUC Parameter (Postmaster context - requires restart)
+// =========================================================================
+
+/// Database for pg_walrus metadata and history table.
+/// The background worker connects to this database for SPI access.
+/// Must be set in postgresql.conf and requires restart to change.
+/// Default: "postgres"
+pub static WALRUS_DATABASE: GucSetting<Option<CString>> =
+    GucSetting::<Option<CString>>::new(Some(c"postgres"));
+
 /// Register all pg_walrus GUC parameters with PostgreSQL.
 ///
-/// This function registers all seven GUC parameters using GucContext::Sighup,
+/// This function registers all eight GUC parameters using GucContext::Sighup,
 /// allowing runtime changes via ALTER SYSTEM and pg_reload_conf().
 pub fn register_gucs() {
     // =========================================================================
@@ -140,6 +162,34 @@ pub fn register_gucs() {
         i32::MAX,
         GucContext::Sighup,
         GucFlags::UNIT_MB,
+    );
+
+    // =========================================================================
+    // History GUCs
+    // =========================================================================
+
+    GucRegistry::define_int_guc(
+        c"walrus.history_retention_days",
+        c"Days to retain history records before automatic cleanup.",
+        c"Records older than this are deleted by cleanup_history(). Range: 0-3650.",
+        &WALRUS_HISTORY_RETENTION_DAYS,
+        0,
+        3650,
+        GucContext::Sighup,
+        GucFlags::default(),
+    );
+
+    // =========================================================================
+    // Database GUC (Postmaster context - requires restart)
+    // =========================================================================
+
+    GucRegistry::define_string_guc(
+        c"walrus.database",
+        c"Database for pg_walrus metadata and history table.",
+        c"Background worker connects to this database. Requires restart to change.",
+        &WALRUS_DATABASE,
+        GucContext::Postmaster,
+        GucFlags::SUPERUSER_ONLY,
     );
 
     // Reserve the "walrus" GUC prefix to prevent other extensions from using it.

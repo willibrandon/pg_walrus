@@ -10,12 +10,14 @@ use crate::guc::{
     WALRUS_ENABLE, WALRUS_MAX, WALRUS_MIN_SIZE, WALRUS_SHRINK_ENABLE, WALRUS_SHRINK_FACTOR,
     WALRUS_SHRINK_INTERVALS, WALRUS_THRESHOLD,
 };
+use crate::history;
 use crate::stats::{checkpoint_timeout, get_current_max_wal_size, get_requested_checkpoints};
 
 use pgrx::bgworkers::{BackgroundWorker, SignalWakeFlags};
 use pgrx::pg_sys;
 use pgrx::prelude::*;
 
+use serde_json::json;
 use std::sync::atomic::{AtomicBool, Ordering};
 
 /// Atomic flag to suppress processing of self-triggered SIGHUP.
@@ -120,11 +122,13 @@ fn process_checkpoint_stats(
         let current_size = get_current_max_wal_size();
 
         // Calculate new size with overflow protection
-        let mut new_size = calculate_new_size(current_size, delta);
+        let calculated_size = calculate_new_size(current_size, delta);
+        let mut new_size = calculated_size;
 
-        // Cap at walrus.max
+        // Cap at walrus.max and track if capped
         let max_allowed = WALRUS_MAX.get();
-        if new_size > max_allowed {
+        let is_capped = new_size > max_allowed;
+        if is_capped {
             pgrx::warning!(
                 "pg_walrus: requested max_wal_size of {} MB exceeds maximum of {} MB; using maximum",
                 new_size,
@@ -162,6 +166,44 @@ fn process_checkpoint_stats(
                 e
             );
             return;
+        }
+
+        // Log to history table (FR-002, FR-003, FR-011)
+        let (action, reason, metadata) = if is_capped {
+            (
+                "capped",
+                "Calculated size exceeded walrus.max",
+                json!({
+                    "delta": delta,
+                    "multiplier": delta + 1,
+                    "calculated_size_mb": calculated_size,
+                    "walrus_max_mb": max_allowed
+                }),
+            )
+        } else {
+            (
+                "increase",
+                "Forced checkpoints exceeded threshold",
+                json!({
+                    "delta": delta,
+                    "multiplier": delta + 1,
+                    "calculated_size_mb": calculated_size
+                }),
+            )
+        };
+
+        if let Err(e) = BackgroundWorker::transaction(|| {
+            history::insert_history_record(
+                action,
+                current_size,
+                new_size,
+                current_requested,
+                timeout_secs as i32,
+                Some(reason),
+                Some(metadata.clone()),
+            )
+        }) {
+            pgrx::warning!("pg_walrus: failed to log history: {}", e);
         }
 
         // Send SIGHUP to postmaster to apply configuration
@@ -226,6 +268,28 @@ fn process_checkpoint_stats(
             return;
         }
 
+        // Log to history table (FR-004, FR-011)
+        let timeout_secs = checkpoint_timeout().as_secs();
+        let metadata = json!({
+            "shrink_factor": shrink_factor,
+            "quiet_intervals": *quiet_intervals,
+            "calculated_size_mb": new_size
+        });
+
+        if let Err(e) = BackgroundWorker::transaction(|| {
+            history::insert_history_record(
+                "decrease",
+                current_size,
+                new_size,
+                current_requested,
+                timeout_secs as i32,
+                Some("Sustained low checkpoint activity"),
+                Some(metadata.clone()),
+            )
+        }) {
+            pgrx::warning!("pg_walrus: failed to log history: {}", e);
+        }
+
         // Reset quiet intervals after successful shrink
         *quiet_intervals = 0;
 
@@ -255,8 +319,13 @@ pub extern "C-unwind" fn walrus_worker_main(_arg: pg_sys::Datum) {
         );
     }
 
-    // Connect to the postgres database to enable SPI access and pg_stat_activity visibility
-    BackgroundWorker::connect_worker_to_spi(Some("postgres"), None);
+    // Connect to the configured database to enable SPI access and pg_stat_activity visibility
+    // Default: "postgres", configurable via walrus.database GUC (requires restart)
+    let db_name: String = crate::guc::WALRUS_DATABASE
+        .get()
+        .and_then(|s| s.to_str().ok().map(|s| s.to_owned()))
+        .unwrap_or_else(|| "postgres".to_owned());
+    BackgroundWorker::connect_worker_to_spi(Some(&db_name), None);
 
     pgrx::log!("pg_walrus worker started");
 
@@ -298,6 +367,11 @@ pub extern "C-unwind" fn walrus_worker_main(_arg: pg_sys::Datum) {
             &mut prev_requested,
             &mut quiet_intervals,
         );
+
+        // Cleanup old history records (FR-009)
+        if let Err(e) = BackgroundWorker::transaction(history::cleanup_old_history) {
+            pgrx::warning!("pg_walrus: failed to cleanup history: {}", e);
+        }
     }
 
     pgrx::log!("pg_walrus worker shutting down");

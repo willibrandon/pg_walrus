@@ -5,6 +5,7 @@
 
 mod config;
 mod guc;
+mod history;
 mod stats;
 mod worker;
 
@@ -12,6 +13,81 @@ use pgrx::bgworkers::{BackgroundWorkerBuilder, BgWorkerStartTime};
 use pgrx::prelude::*;
 
 ::pgrx::pg_module_magic!();
+
+// =========================================================================
+// Schema and History Table Creation (FR-001, FR-010)
+// =========================================================================
+
+pgrx::extension_sql!(
+    r#"
+-- Create walrus schema for namespacing
+CREATE SCHEMA IF NOT EXISTS walrus;
+
+-- History table for audit trail of sizing decisions
+CREATE TABLE walrus.history (
+    id BIGSERIAL PRIMARY KEY,
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT now(),
+    action TEXT NOT NULL CHECK (action IN ('increase', 'decrease', 'capped')),
+    old_size_mb INTEGER NOT NULL CHECK (old_size_mb > 0),
+    new_size_mb INTEGER NOT NULL CHECK (new_size_mb > 0),
+    forced_checkpoints BIGINT NOT NULL CHECK (forced_checkpoints >= 0),
+    checkpoint_timeout_sec INTEGER NOT NULL CHECK (checkpoint_timeout_sec > 0),
+    reason TEXT,
+    metadata JSONB
+);
+
+-- Index for efficient range queries and cleanup
+CREATE INDEX walrus_history_timestamp_idx ON walrus.history (timestamp);
+
+-- Documentation comments
+COMMENT ON TABLE walrus.history IS 'Audit trail of pg_walrus sizing decisions';
+COMMENT ON COLUMN walrus.history.id IS 'Unique identifier for each history record';
+COMMENT ON COLUMN walrus.history.timestamp IS 'When the sizing decision was made';
+COMMENT ON COLUMN walrus.history.action IS 'Decision type: increase, decrease, or capped';
+COMMENT ON COLUMN walrus.history.old_size_mb IS 'max_wal_size before the change (in MB)';
+COMMENT ON COLUMN walrus.history.new_size_mb IS 'max_wal_size after the change (in MB)';
+COMMENT ON COLUMN walrus.history.forced_checkpoints IS 'Checkpoint count at decision time';
+COMMENT ON COLUMN walrus.history.checkpoint_timeout_sec IS 'checkpoint_timeout value in seconds at decision time';
+COMMENT ON COLUMN walrus.history.reason IS 'Human-readable explanation of the decision';
+COMMENT ON COLUMN walrus.history.metadata IS 'Algorithm-specific details in JSON format';
+"#,
+    name = "create_walrus_schema_and_history",
+    bootstrap,
+);
+
+// =========================================================================
+// SQL-Callable Functions in walrus Schema (T039-T041)
+// =========================================================================
+
+/// Module for SQL-callable functions in the walrus schema.
+///
+/// The `#[pg_schema]` attribute ensures functions are created in the `walrus` schema
+/// rather than the default public schema.
+#[pg_schema]
+mod walrus {
+    use crate::history;
+    use pgrx::prelude::*;
+
+    /// Deletes history records older than the configured retention period.
+    ///
+    /// This function can be called manually or scheduled via pg_cron.
+    /// The retention period is controlled by the `walrus.history_retention_days` GUC.
+    ///
+    /// # Returns
+    ///
+    /// The number of records deleted.
+    ///
+    /// # Example
+    ///
+    /// ```sql
+    /// SELECT walrus.cleanup_history();
+    /// -- Returns: 42 (number of deleted records)
+    /// ```
+    #[pg_extern]
+    fn cleanup_history() -> Result<i64, spi::Error> {
+        history::cleanup_old_history()
+    }
+}
 
 /// Extension initialization entry point.
 ///
@@ -171,7 +247,7 @@ mod tests {
         assert_eq!(unit, Some("MB"), "walrus.min_size should have unit = 'MB'");
     }
 
-    /// Test that all 7 walrus GUCs are visible in pg_settings with correct context (T029).
+    /// Test that all 8 walrus GUCs are visible in pg_settings with correct context (T029).
     #[pg_test]
     fn test_guc_context_is_sighup() {
         let count = Spi::get_one::<i64>(
@@ -180,8 +256,8 @@ mod tests {
         .expect("query failed");
         assert_eq!(
             count,
-            Some(7),
-            "All 7 walrus GUCs should have context = 'sighup'"
+            Some(8),
+            "All 8 walrus GUCs should have context = 'sighup'"
         );
     }
 
@@ -714,4 +790,6 @@ mod tests {
             "shrink_intervals should be accessible"
         );
     }
+
+    // History Table Tests (T011-T015) are in src/history.rs tests module
 }

@@ -17,9 +17,9 @@
 
 **Purpose**: Project structure changes and module scaffolding
 
-- [ ] T001 Create history module file `src/history.rs` with module documentation
-- [ ] T002 Add `mod history;` declaration to `src/lib.rs`
-- [ ] T003 [P] Add `serde` and `serde_json` dependencies to `Cargo.toml` for JSONB handling
+- [X] T001 Create history module file `src/history.rs` with module documentation
+- [X] T002 Add `mod history;` declaration to `src/lib.rs`
+- [X] T003 [P] Add `serde` and `serde_json` dependencies to `Cargo.toml` for JSONB handling
 
 ---
 
@@ -31,16 +31,16 @@
 
 ### Schema Creation (FR-001, FR-010)
 
-- [ ] T004 Add `extension_sql!` block to `src/lib.rs` with `bootstrap` positioning to create `walrus` schema
-- [ ] T005 Add `walrus.history` table DDL in the `extension_sql!` block with all columns per data-model.md
-- [ ] T006 Add CHECK constraints for action type ('increase', 'decrease', 'capped') and positive integers
-- [ ] T007 Add `walrus_history_timestamp_idx` index on timestamp column in the `extension_sql!` block
-- [ ] T008 Add COMMENT statements for table and key columns in the `extension_sql!` block
+- [X] T004 Add `extension_sql!` block to `src/lib.rs` with `bootstrap` positioning to create `walrus` schema
+- [X] T005 Add `walrus.history` table DDL in the `extension_sql!` block with all columns per data-model.md
+- [X] T006 Add CHECK constraints for action type ('increase', 'decrease', 'capped') and positive integers
+- [X] T007 Add `walrus_history_timestamp_idx` index on timestamp column in the `extension_sql!` block
+- [X] T008 Add COMMENT statements for table and key columns in the `extension_sql!` block
 
 ### GUC Registration (FR-007)
 
-- [ ] T009 Add `WALRUS_HISTORY_RETENTION_DAYS` static to `src/guc.rs` with default 7
-- [ ] T010 Add `GucRegistry::define_int_guc()` call in `register_gucs()` for `walrus.history_retention_days` with range 0-3650
+- [X] T009 Add `WALRUS_HISTORY_RETENTION_DAYS` static to `src/guc.rs` with default 7
+- [X] T010 Add `GucRegistry::define_int_guc()` call in `register_gucs()` for `walrus.history_retention_days` with range 0-3650
 
 **Checkpoint**: Schema, table, index, and GUC ready - history module implementation can begin
 
@@ -54,13 +54,13 @@
 
 ### Implementation for User Story 1
 
-- [ ] T011 [US1] Write `#[pg_test]` in `src/lib.rs` tests module: `test_history_table_exists` - verify table exists after CREATE EXTENSION
-- [ ] T012 [US1] Write `#[pg_test]` in `src/lib.rs` tests module: `test_history_table_columns` - verify all 9 columns exist with correct types
-- [ ] T013 [US1] Write `#[pg_test]` in `src/lib.rs` tests module: `test_history_timestamp_index_exists` - verify index exists
-- [ ] T014 [US1] Write `#[pg_test]` in `src/lib.rs` tests module: `test_guc_history_retention_days_default` - verify GUC default is 7
-- [ ] T015 [US1] Write `#[pg_test]` in `src/lib.rs` tests module: `test_guc_history_retention_days_range` - verify range 0-3650 via pg_settings
-- [ ] T016 [US1] Create `tests/pg_regress/sql/history.sql` with queries per spec acceptance scenarios
-- [ ] T017 [US1] Create `tests/pg_regress/expected/history.out` with expected output
+- [X] T011 [US1] Write `#[pg_test]` in `src/history.rs` tests module: `test_history_table_exists` - verify table exists after CREATE EXTENSION
+- [X] T012 [US1] Write `#[pg_test]` in `src/history.rs` tests module: `test_history_table_columns` - verify all 9 columns exist with correct types
+- [X] T013 [US1] Write `#[pg_test]` in `src/history.rs` tests module: `test_history_timestamp_index_exists` - verify index exists
+- [X] T014 [US1] Write `#[pg_test]` in `src/history.rs` tests module: `test_guc_history_retention_days_default` - verify GUC default is 7
+- [X] T015 [US1] Write `#[pg_test]` in `src/history.rs` tests module: `test_guc_history_retention_days_range` - verify range 0-3650 via pg_settings
+- [X] T016 [US1] Create `tests/pg_regress/sql/history.sql` with queries per spec acceptance scenarios
+- [X] T017 [US1] Create `tests/pg_regress/expected/history.out` with expected output
 
 **Checkpoint**: User Story 1 complete - history table is queryable with all columns and proper indexing
 
@@ -74,32 +74,32 @@
 
 ### History Module Core (FR-002, FR-003, FR-004, FR-005, FR-006, FR-012)
 
-- [ ] T018 [US2] Implement `insert_history_record()` function in `src/history.rs` with SPI parameterized INSERT
-- [ ] T019 [US2] Add `pgrx::JsonB` handling for metadata parameter in `insert_history_record()`
-- [ ] T020 [US2] Implement proper error handling in `insert_history_record()` returning `Result<(), spi::Error>`
+- [X] T018 [US2] Implement `insert_history_record()` function in `src/history.rs` with SPI parameterized INSERT
+- [X] T019 [US2] Add `pgrx::JsonB` handling for metadata parameter in `insert_history_record()`
+- [X] T020 [US2] Implement proper error handling in `insert_history_record()` returning `Result<(), spi::Error>`
 
 ### Worker Integration (FR-002, FR-003, FR-004, FR-011)
 
-- [ ] T021 [US2] Add `use crate::history;` import to `src/worker.rs`
-- [ ] T022 [US2] Call `insert_history_record()` in GROW PATH after successful `execute_alter_system()` with action='increase'
-- [ ] T023 [US2] Call `insert_history_record()` in GROW PATH when size is capped at walrus.max with action='capped'
-- [ ] T024 [US2] Call `insert_history_record()` in SHRINK PATH after successful `execute_alter_system()` with action='decrease'
-- [ ] T025 [US2] Wrap history insert calls in `BackgroundWorker::transaction()` per research.md pattern
-- [ ] T026 [US2] Add graceful error handling: log warning and continue if history insert fails (FR-011)
+- [X] T021 [US2] Add `use crate::history;` import to `src/worker.rs`
+- [X] T022 [US2] Call `insert_history_record()` in GROW PATH after successful `execute_alter_system()` with action='increase'
+- [X] T023 [US2] Call `insert_history_record()` in GROW PATH when size is capped at walrus.max with action='capped'
+- [X] T024 [US2] Call `insert_history_record()` in SHRINK PATH after successful `execute_alter_system()` with action='decrease'
+- [X] T025 [US2] Wrap history insert calls in `BackgroundWorker::transaction()` per research.md pattern
+- [X] T026 [US2] Add graceful error handling: log warning and continue if history insert fails (FR-011)
 
 ### Metadata Construction
 
-- [ ] T027 [US2] Create metadata JSON for 'increase' action: `{"delta": N, "multiplier": M, "calculated_size_mb": X}`
-- [ ] T028 [US2] Create metadata JSON for 'decrease' action: `{"shrink_factor": F, "quiet_intervals": N, "calculated_size_mb": X}`
-- [ ] T029 [US2] Create metadata JSON for 'capped' action: `{"delta": N, "multiplier": M, "calculated_size_mb": X, "walrus_max_mb": Y}`
+- [X] T027 [US2] Create metadata JSON for 'increase' action: `{"delta": N, "multiplier": M, "calculated_size_mb": X}`
+- [X] T028 [US2] Create metadata JSON for 'decrease' action: `{"shrink_factor": F, "quiet_intervals": N, "calculated_size_mb": X}`
+- [X] T029 [US2] Create metadata JSON for 'capped' action: `{"delta": N, "multiplier": M, "calculated_size_mb": X, "walrus_max_mb": Y}`
 
 ### Tests for User Story 2
 
-- [ ] T030 [US2] Write `#[pg_test]` in `src/history.rs`: `test_insert_history_record_increase` - verify insert with action='increase'
-- [ ] T031 [US2] Write `#[pg_test]` in `src/history.rs`: `test_insert_history_record_decrease` - verify insert with action='decrease'
-- [ ] T032 [US2] Write `#[pg_test]` in `src/history.rs`: `test_insert_history_record_capped` - verify insert with action='capped'
-- [ ] T033 [US2] Write `#[pg_test]` in `src/history.rs`: `test_insert_history_record_with_metadata` - verify JSONB metadata stored correctly
-- [ ] T034 [US2] Write `#[pg_test]` in `src/history.rs`: `test_insert_history_record_null_metadata` - verify NULL metadata works
+- [X] T030 [US2] Write `#[pg_test]` in `src/history.rs`: `test_insert_history_record_increase` - verify insert with action='increase'
+- [X] T031 [US2] Write `#[pg_test]` in `src/history.rs`: `test_insert_history_record_decrease` - verify insert with action='decrease'
+- [X] T032 [US2] Write `#[pg_test]` in `src/history.rs`: `test_insert_history_record_capped` - verify insert with action='capped'
+- [X] T033 [US2] Write `#[pg_test]` in `src/history.rs`: `test_insert_history_record_with_metadata` - verify JSONB metadata stored correctly
+- [X] T034 [US2] Write `#[pg_test]` in `src/history.rs`: `test_insert_history_record_null_metadata` - verify NULL metadata works
 
 **Checkpoint**: User Story 2 complete - worker logs all sizing events automatically
 
@@ -113,35 +113,35 @@
 
 ### Cleanup Function Implementation (FR-008)
 
-- [ ] T035 [US3] Implement `cleanup_old_history()` internal function in `src/history.rs` returning `Result<i64, spi::Error>`
-- [ ] T036 [US3] Read `WALRUS_HISTORY_RETENTION_DAYS` GUC value in `cleanup_old_history()`
-- [ ] T037 [US3] Execute parameterized DELETE query: `DELETE FROM walrus.history WHERE timestamp < now() - $1 * interval '1 day'`
-- [ ] T038 [US3] Return count of deleted records from `cleanup_old_history()`
+- [X] T035 [US3] Implement `cleanup_old_history()` internal function in `src/history.rs` returning `Result<i64, spi::Error>`
+- [X] T036 [US3] Read `WALRUS_HISTORY_RETENTION_DAYS` GUC value in `cleanup_old_history()`
+- [X] T037 [US3] Execute parameterized DELETE query: `DELETE FROM walrus.history WHERE timestamp < now() - $1 * interval '1 day'`
+- [X] T038 [US3] Return count of deleted records from `cleanup_old_history()`
 
 ### SQL-Callable Wrapper (FR-008)
 
-- [ ] T039 [US3] Add `#[pg_schema] mod walrus` block to `src/lib.rs` or `src/history.rs`
-- [ ] T040 [US3] Implement `cleanup_history()` as `#[pg_extern]` function returning `Result<i64, spi::Error>`
-- [ ] T041 [US3] Have `cleanup_history()` call `cleanup_old_history()` internally
+- [X] T039 [US3] Add `#[pg_schema] mod walrus` block to `src/lib.rs`
+- [X] T040 [US3] Implement `cleanup_history()` as `#[pg_extern]` function returning `Result<i64, spi::Error>`
+- [X] T041 [US3] Have `cleanup_history()` call `cleanup_old_history()` internally
 
 ### Worker Integration (FR-009)
 
-- [ ] T042 [US3] Call `cleanup_old_history()` at end of `process_checkpoint_stats()` in `src/worker.rs`
-- [ ] T043 [US3] Wrap cleanup call in `BackgroundWorker::transaction()` with error handling
+- [X] T042 [US3] Call `cleanup_old_history()` at end of worker loop in `src/worker.rs`
+- [X] T043 [US3] Wrap cleanup call in `BackgroundWorker::transaction()` with error handling
 
 ### Edge Cases
 
-- [ ] T044 [US3] Handle retention_days = 0: all records deleted on each cleanup call
-- [ ] T045 [US3] Handle empty history table: return 0 records deleted
+- [X] T044 [US3] Handle retention_days = 0: all records deleted on each cleanup call
+- [X] T045 [US3] Handle empty history table: return 0 records deleted
 
 ### Tests for User Story 3
 
-- [ ] T046 [US3] Write `#[pg_test]` in `src/history.rs`: `test_cleanup_history_deletes_old_records`
-- [ ] T047 [US3] Write `#[pg_test]` in `src/history.rs`: `test_cleanup_history_preserves_recent_records`
-- [ ] T048 [US3] Write `#[pg_test]` in `src/history.rs`: `test_cleanup_history_returns_count`
-- [ ] T049 [US3] Write `#[pg_test]` in `src/history.rs`: `test_cleanup_history_retention_zero`
-- [ ] T050 [US3] Create `tests/pg_regress/sql/cleanup.sql` with cleanup function SQL tests
-- [ ] T051 [US3] Create `tests/pg_regress/expected/cleanup.out` with expected output
+- [X] T046 [US3] Write `#[pg_test]` in `src/history.rs`: `test_cleanup_history_deletes_old_records`
+- [X] T047 [US3] Write `#[pg_test]` in `src/history.rs`: `test_cleanup_history_preserves_recent_records`
+- [X] T048 [US3] Write `#[pg_test]` in `src/history.rs`: `test_cleanup_history_returns_count`
+- [X] T049 [US3] Write `#[pg_test]` in `src/history.rs`: `test_cleanup_history_retention_zero`
+- [X] T050 [US3] Create `tests/pg_regress/sql/cleanup.sql` with cleanup function SQL tests
+- [X] T051 [US3] Create `tests/pg_regress/expected/cleanup.out` with expected output
 
 **Checkpoint**: User Story 3 complete - history table is automatically pruned
 
@@ -157,9 +157,9 @@
 
 ### Tests for User Story 4
 
-- [ ] T052 [US4] Create `tests/pg_regress/sql/export.sql` with COPY TO export test
-- [ ] T053 [US4] Create `tests/pg_regress/expected/export.out` with expected output
-- [ ] T054 [US4] Verify JSONB metadata column is preserved in export format
+- [X] T052 [US4] Create `tests/pg_regress/sql/export.sql` with COPY TO export test
+- [X] T053 [US4] Create `tests/pg_regress/expected/export.out` with expected output
+- [X] T054 [US4] Verify JSONB metadata column is preserved in export format
 
 **Checkpoint**: User Story 4 complete - audit export workflows validated
 
@@ -171,22 +171,22 @@
 
 ### History Table Errors (Edge Cases from spec)
 
-- [ ] T055 Write `#[pg_test]` in `src/history.rs`: `test_insert_fails_gracefully_on_error` - verify worker continues if insert fails (covers: table dropped, disk space exhausted, any INSERT error)
-- [ ] T056 Implement table existence check in `insert_history_record()` before INSERT
-- [ ] T057 Log warning if history table does not exist and continue worker operation
+- [X] T055 Write `#[pg_test]` in `src/history.rs`: `test_insert_fails_gracefully_on_error` - verify worker continues if insert fails (covers: table dropped, disk space exhausted, any INSERT error)
+- [X] T056 Implement table existence check in `insert_history_record()` before INSERT
+- [X] T057 Log warning if history table does not exist and continue worker operation
 
 ### Concurrent Access (Edge Cases from spec)
 
-- [ ] T058 Write `#[pg_test]` in `src/history.rs`: `test_concurrent_insert_during_cleanup_preserves_new_records` - insert a record, start cleanup in same transaction, verify new record not deleted by concurrent cleanup
-- [ ] T059 Document that standard PostgreSQL MVCC handles concurrent access (no additional implementation needed)
+- [X] T058 Write `#[pg_test]` in `src/history.rs`: `test_concurrent_insert_during_cleanup_preserves_new_records` - insert a record, start cleanup in same transaction, verify new record not deleted by concurrent cleanup
+- [X] T059 Document that standard PostgreSQL MVCC handles concurrent access (no additional implementation needed)
 
 ### Large Table Cleanup (Edge Cases from spec)
 
-- [ ] T060 Verify timestamp index is used for DELETE via EXPLAIN in pg_regress test
+- [X] T060 Verify timestamp index is used for DELETE via EXPLAIN in pg_regress test (cleanup.sql)
 
 ### Performance Verification (Success Criteria from spec)
 
-- [ ] T069 Write `#[pg_test]` in `src/history.rs`: `test_insert_completes_within_one_second` - verify insert timing meets SC-001 (< 1 second)
+- [X] T069 Write `#[pg_test]` in `src/history.rs`: `test_insert_completes_within_one_second` - verify insert timing meets SC-001 (< 1 second)
 
 **Checkpoint**: All edge cases from spec implemented and tested
 
@@ -196,14 +196,14 @@
 
 **Purpose**: Final validation and cleanup
 
-- [ ] T061 Run `cargo pgrx test pg18` - verify all new tests pass
-- [ ] T062 Run `cargo pgrx regress pg18 --postgresql-conf "shared_preload_libraries='pg_walrus'"` - verify pg_regress tests pass
-- [ ] T063 Run multi-version tests: pg15, pg16, pg17, pg18
-- [ ] T064 Verify `src/lib.rs` remains under 900 LOC (Constitution XV)
-- [ ] T065 Verify `src/history.rs` remains under 900 LOC (Constitution XV)
-- [ ] T066 Run `cargo clippy` and fix any warnings
-- [ ] T067 Run `cargo fmt` to ensure consistent formatting
-- [ ] T068 Run quickstart.md verification commands
+- [X] T061 Run `cargo pgrx test pg18` - verify all new tests pass (64 tests pass)
+- [X] T062 Run `cargo pgrx regress pg18 --postgresql-conf "shared_preload_libraries='pg_walrus'"` - verify pg_regress tests pass (8 tests pass)
+- [X] T063 Run multi-version tests: pg15, pg16, pg17, pg18 - all 64 tests pass on all versions
+- [X] T064 Verify `src/lib.rs` remains under 900 LOC (Constitution XV) - 795 LOC
+- [X] T065 Verify `src/history.rs` remains under 900 LOC (Constitution XV) - 552 LOC
+- [X] T066 Run `cargo clippy` and fix any warnings
+- [X] T067 Run `cargo fmt` to ensure consistent formatting
+- [X] T068 Run quickstart.md verification commands - all passed
 
 ---
 

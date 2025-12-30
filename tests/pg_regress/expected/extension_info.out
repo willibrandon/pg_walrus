@@ -5,30 +5,34 @@ SELECT name, setting, unit, short_desc
 FROM pg_settings
 WHERE name LIKE 'walrus.%'
 ORDER BY name;
-          name           | setting | unit |                           short_desc                           
--------------------------+---------+------+----------------------------------------------------------------
- walrus.enable           | on      |      | Enable automatic resizing of max_wal_size parameter.
- walrus.max              | 4096    | MB   | Maximum size for max_wal_size that pg_walrus will not exceed.
- walrus.min_size         | 1024    | MB   | Minimum floor for max_wal_size in MB.
- walrus.shrink_enable    | on      |      | Enable automatic shrinking of max_wal_size parameter.
- walrus.shrink_factor    | 0.75    |      | Multiplication factor when shrinking max_wal_size.
- walrus.shrink_intervals | 5       |      | Quiet checkpoint intervals before triggering shrink.
- walrus.threshold        | 2       |      | Forced checkpoints per timeout before increasing max_wal_size.
-(7 rows)
+             name              | setting  | unit |                           short_desc                           
+-------------------------------+----------+------+----------------------------------------------------------------
+ walrus.database               | postgres |      | Database for pg_walrus metadata and history table.
+ walrus.enable                 | on       |      | Enable automatic resizing of max_wal_size parameter.
+ walrus.history_retention_days | 7        |      | Days to retain history records before automatic cleanup.
+ walrus.max                    | 4096     | MB   | Maximum size for max_wal_size that pg_walrus will not exceed.
+ walrus.min_size               | 1024     | MB   | Minimum floor for max_wal_size in MB.
+ walrus.shrink_enable          | on       |      | Enable automatic shrinking of max_wal_size parameter.
+ walrus.shrink_factor          | 0.75     |      | Multiplication factor when shrinking max_wal_size.
+ walrus.shrink_intervals       | 5        |      | Quiet checkpoint intervals before triggering shrink.
+ walrus.threshold              | 2        |      | Forced checkpoints per timeout before increasing max_wal_size.
+(9 rows)
 
 -- Check GUC context is SIGHUP (allows runtime changes via ALTER SYSTEM)
 SELECT name, context
 FROM pg_settings
 WHERE name LIKE 'walrus.%'
 ORDER BY name;
-          name           | context 
--------------------------+---------
- walrus.enable           | sighup
- walrus.max              | sighup
- walrus.min_size         | sighup
- walrus.shrink_enable    | sighup
- walrus.shrink_factor    | sighup
- walrus.shrink_intervals | sighup
- walrus.threshold        | sighup
-(7 rows)
+             name              |  context   
+-------------------------------+------------
+ walrus.database               | postmaster
+ walrus.enable                 | sighup
+ walrus.history_retention_days | sighup
+ walrus.max                    | sighup
+ walrus.min_size               | sighup
+ walrus.shrink_enable          | sighup
+ walrus.shrink_factor          | sighup
+ walrus.shrink_intervals       | sighup
+ walrus.threshold              | sighup
+(9 rows)
 

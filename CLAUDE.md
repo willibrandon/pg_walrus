@@ -910,11 +910,12 @@ The extension works by:
 ### Source Structure
 ```
 src/
-├── lib.rs              # Entry point, _PG_init, GUC registration, tests
+├── lib.rs              # Entry point, _PG_init, GUC registration, SQL functions, tests
 ├── worker.rs           # Background worker implementation
 ├── stats.rs            # Checkpoint statistics access (version-specific)
 ├── config.rs           # ALTER SYSTEM implementation
-└── guc.rs              # GUC parameter definitions
+├── guc.rs              # GUC parameter definitions
+└── history.rs          # History table operations (insert, cleanup)
 ```
 
 ## GUC Parameters
@@ -935,6 +936,18 @@ src/
 | `walrus.shrink_factor` | 0.75 | Multiplier for shrink calculation (0.01-0.99) |
 | `walrus.shrink_intervals` | 5 | Quiet intervals before shrinking (1-1000) |
 | `walrus.min_size` | 1GB | Minimum floor for `max_wal_size` |
+
+### History Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `walrus.history_retention_days` | 7 | Days to retain history records (0-3650) |
+
+### Database Connection
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `walrus.database` | postgres | Database where history table is stored (postmaster context, requires restart) |
 
 ## PostgreSQL Version Compatibility
 

@@ -35,10 +35,10 @@ LOG:  parameter "max_wal_size" changed to "2560"
 - Configurable maximum cap to prevent runaway growth
 - Live configuration updates via `ALTER SYSTEM` + `SIGHUP`
 - **Auto-Shrink**: Automatically reduce `max_wal_size` after sustained periods of low checkpoint activity
+- **History Table**: Full audit trail of all sizing adjustments in `walrus.history`
 
 ### Planned
-- **SQL Functions**: Query status, history, and recommendations via SQL
-- **History Table**: Full audit trail of all adjustments
+- **SQL Functions**: Query status and recommendations via SQL
 - **Dry-Run Mode**: Test behavior without making changes
 - **Rate Limiting**: Prevent thrashing on unstable workloads
 - **NOTIFY Events**: Real-time notifications on adjustments
@@ -135,7 +135,70 @@ pg_ctl restart -D $PGDATA
 | `walrus.shrink_intervals` | `5` | Quiet intervals before shrinking (1-1000) |
 | `walrus.min_size` | `1GB` | Minimum floor for `max_wal_size` |
 
+### History Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `walrus.history_retention_days` | `7` | Days to retain history records (0-3650) |
+
 All parameters require `SIGHUP` to take effect (no restart needed).
+
+### Database Connection
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `walrus.database` | `postgres` | Database where history table is stored (requires restart) |
+
+**Note**: `walrus.database` has `postmaster` context and requires a PostgreSQL restart to change.
+
+## History Table
+
+The `walrus.history` table records all sizing decisions made by pg_walrus. The table is created in the `walrus` schema when you run `CREATE EXTENSION pg_walrus`.
+
+### Schema
+
+```sql
+walrus.history (
+    id BIGSERIAL PRIMARY KEY,
+    timestamp TIMESTAMPTZ NOT NULL DEFAULT now(),
+    action TEXT NOT NULL,           -- 'increase', 'decrease', or 'capped'
+    old_size_mb INTEGER NOT NULL,
+    new_size_mb INTEGER NOT NULL,
+    forced_checkpoints BIGINT NOT NULL,
+    checkpoint_timeout_sec INTEGER NOT NULL,
+    reason TEXT,
+    metadata JSONB                  -- Action-specific details
+)
+```
+
+### Querying History
+
+```sql
+-- Recent sizing decisions
+SELECT timestamp, action, old_size_mb, new_size_mb, reason
+FROM walrus.history
+ORDER BY timestamp DESC
+LIMIT 10;
+
+-- Summary by action type
+SELECT action, count(*), avg(new_size_mb - old_size_mb)::int AS avg_change
+FROM walrus.history
+GROUP BY action;
+
+-- Export for compliance audit
+COPY (SELECT * FROM walrus.history WHERE timestamp >= '2025-01-01' ORDER BY timestamp)
+TO '/tmp/walrus_audit.csv' WITH CSV HEADER;
+```
+
+### Automatic Cleanup
+
+Old history records are automatically deleted based on `walrus.history_retention_days`. You can also manually trigger cleanup:
+
+```sql
+-- Delete records older than retention period
+SELECT walrus.cleanup_history();
+-- Returns: number of deleted records
+```
 
 ### Example
 
