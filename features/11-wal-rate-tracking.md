@@ -39,6 +39,5 @@ struct WalRateTracker {
 - Enhances smart algorithms (feature 09)
 
 ## Reference
-- **pg_walsizer source**: `pg_walsizer/walsizer.c` - Reference for checkpoint stats access
-- **Enhancements design**: `ENHANCEMENTS_PROPOSAL.md` - Section 4.2 WAL Rate Tracking
+- **Core implementation**: `src/stats.rs` - Reference for checkpoint stats access
 - **Feature index**: `features/README.md`

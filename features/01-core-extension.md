@@ -1,6 +1,6 @@
-# Feature: Core Extension (pgrx Rewrite)
+# Feature: Core Extension (pgrx)
 
-Rewrite pg_walsizer as pg_walrus using Rust and the pgrx framework.
+**Status: COMPLETE** - 132 tests passing across PostgreSQL 15-18.
 
 ## What It Does
 - Background worker monitors checkpoint activity every `checkpoint_timeout` interval
@@ -14,21 +14,18 @@ Rewrite pg_walsizer as pg_walrus using Rust and the pgrx framework.
 - `walrus.max` (int, default: 4GB) - Maximum allowed `max_wal_size`
 - `walrus.threshold` (int, default: 2) - Forced checkpoints before resize
 
-## Technical Constraints
-- Support PostgreSQL 15, 16, 17, 18
-- Handle version-specific field names: `requested_checkpoints` (PG15-16) vs `num_requested` (PG17+)
-- Use `#[pg_guard]` for FFI safety
+## Technical Details
+- Supports PostgreSQL 15, 16, 17, 18
+- Version-specific field names: `requested_checkpoints` (PG15-16) vs `num_requested` (PG17+)
+- Uses `#[pg_guard]` for FFI safety
 - Atomic signal handling for self-triggered SIGHUP detection
 
-## Module Structure
-- `lib.rs` - Entry point, _PG_init, GUC registration
-- `worker.rs` - Background worker main loop
-- `stats.rs` - Checkpoint statistics access
-- `config.rs` - ALTER SYSTEM implementation
-- `version_compat.rs` - PG version handling
+## Source Structure
+- `src/lib.rs` - Entry point, _PG_init, GUC registration, tests
+- `src/worker.rs` - Background worker main loop
+- `src/stats.rs` - Checkpoint statistics access
+- `src/config.rs` - ALTER SYSTEM implementation
+- `src/guc.rs` - GUC parameter definitions
 
 ## Reference
-- **pg_walsizer source**: `pg_walsizer/walsizer.c` - Use as reference for background worker, GUC registration, and core logic
-- **pg_walsizer header**: `pg_walsizer/walsizer.h`
-- **Conversion design**: `CONVERSION_PROPOSAL.md` - C-to-Rust API mappings
 - **Feature index**: `features/README.md`

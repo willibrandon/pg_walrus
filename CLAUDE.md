@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 pg_walrus is a Rust rewrite (using pgrx) of pg_walsizer - a PostgreSQL extension that automatically monitors and adjusts `max_wal_size` to prevent performance-degrading forced checkpoints. The name comes from WAL + Rust = Walrus.
 
-**Current state**: The Rust implementation is complete with 132 tests passing across PostgreSQL 15-18. The original C implementation (pg_walsizer) is retained for reference.
+**Current state**: The Rust implementation is complete with 132 tests passing across PostgreSQL 15-18.
 
 ## No Regression Policy
 
@@ -159,14 +159,7 @@ Commit messages MUST NOT contain AI assistant attribution or co-authorship claim
 
 ## Build Commands
 
-### Original C Extension (pg_walsizer)
-```bash
-cd pg_walsizer
-make                    # Build extension
-sudo make install       # Install to PostgreSQL
-```
-
-### Rust Extension (pg_walrus) - Quick Reference
+### Quick Reference
 ```bash
 cargo pgrx run pg18                        # Build, install, and open psql
 cargo pgrx test pg18                       # Run pgrx integration tests
@@ -870,11 +863,7 @@ The extension works by:
 4. If forced checkpoints exceed threshold, calculating new `max_wal_size` as: `current_size * (forced_checkpoints + 1)`
 5. Applying changes via `ALTER SYSTEM` + `SIGHUP` to postmaster
 
-### Key Files (C Implementation)
-- `pg_walsizer/walsizer.c` - Background worker and main logic (~290 lines)
-- `pg_walsizer/walsizer.h` - Header with `PG_MODULE_MAGIC` export
-
-### Rust Structure
+### Source Structure
 ```
 src/
 ├── lib.rs              # Entry point, _PG_init, GUC registration, tests

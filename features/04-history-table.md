@@ -35,6 +35,5 @@ CREATE INDEX ON walrus.history (timestamp);
 - Schema created via `extension_sql!` macro
 
 ## Reference
-- **pg_walsizer source**: `pg_walsizer/walsizer.c` - Reference for adjustment events to log
-- **Enhancements design**: `ENHANCEMENTS_PROPOSAL.md` - Section 2.3 Event History
+- **Core implementation**: `src/worker.rs` - Reference for adjustment events to log
 - **Feature index**: `features/README.md`

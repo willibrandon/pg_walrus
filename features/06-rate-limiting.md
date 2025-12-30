@@ -31,6 +31,5 @@ struct RateLimiter {
 - Requires core extension (feature 01)
 
 ## Reference
-- **pg_walsizer source**: `pg_walsizer/walsizer.c` - Reference for adjustment trigger points
-- **Enhancements design**: `ENHANCEMENTS_PROPOSAL.md` - Section 3.2 Rate Limiting
+- **Core implementation**: `src/worker.rs` - Reference for adjustment trigger points
 - **Feature index**: `features/README.md`

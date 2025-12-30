@@ -95,14 +95,6 @@ cargo pgrx install --release
 cargo pgrx install --release --sudo
 ```
 
-### Original C Version (pg_walsizer)
-
-```bash
-cd pg_walsizer
-make
-sudo make install
-```
-
 ### Enable the Extension
 
 Add to `postgresql.conf` (or use `ALTER SYSTEM`):
@@ -182,19 +174,14 @@ done
 
 | Component | Status |
 |-----------|--------|
-| Original C extension (pg_walsizer) | Complete |
-| Rust conversion design | Complete |
-| Rust implementation | Complete |
+| Core extension | Complete |
 | Enhanced features | Planned |
 
 ## Documentation
 
 | Document | Description |
 |----------|-------------|
-| [CONVERSION_PROPOSAL.md](CONVERSION_PROPOSAL.md) | Technical design for C to Rust conversion |
-| [ENHANCEMENTS_PROPOSAL.md](ENHANCEMENTS_PROPOSAL.md) | New features and improvements |
 | [features/](features/) | Speckit feature documents |
-| [pg_walsizer/README.md](pg_walsizer/README.md) | Original pg_walsizer documentation |
 
 ## License
 

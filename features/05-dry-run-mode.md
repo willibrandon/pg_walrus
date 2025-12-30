@@ -36,6 +36,5 @@ LOG: pg_walrus [DRY-RUN]: would change max_wal_size from 1024 MB to 2048 MB (thr
 - Integrates with history table (feature 04) if available
 
 ## Reference
-- **pg_walsizer source**: `pg_walsizer/walsizer.c` - Reference for ALTER SYSTEM flow to bypass
-- **Enhancements design**: `ENHANCEMENTS_PROPOSAL.md` - Section 2.4 Dry-Run Mode
+- **Core implementation**: `src/config.rs` - Reference for ALTER SYSTEM flow to bypass
 - **Feature index**: `features/README.md`

@@ -4,15 +4,15 @@ Feature documents for `/speckit.specify` workflow. Each file is optimized to be 
 
 ## Reference Implementation
 
-The original C implementation (`pg_walsizer/`) serves as the reference for the Rust rewrite. Use it during all speckit phases:
+The core extension (Feature 01) is complete. Use the implemented Rust code as reference for enhancement features:
 
 | File | Purpose |
 |------|---------|
-| `pg_walsizer/walsizer.c` | Core logic, background worker, GUC registration |
-| `pg_walsizer/walsizer.h` | Header with exports |
-| `pg_walsizer/README.md` | Original documentation |
-| `CONVERSION_PROPOSAL.md` | C-to-Rust API mappings and design decisions |
-| `ENHANCEMENTS_PROPOSAL.md` | New features beyond the original |
+| `src/lib.rs` | Entry point, _PG_init, GUC registration, tests |
+| `src/worker.rs` | Background worker main loop |
+| `src/stats.rs` | Checkpoint statistics access |
+| `src/config.rs` | ALTER SYSTEM implementation |
+| `src/guc.rs` | GUC parameter definitions |
 
 ## Usage
 
@@ -27,7 +27,7 @@ The original C implementation (`pg_walsizer/`) serves as the reference for the R
 ### Tier 1: Essential (v1.0)
 | # | Feature | Description | Dependencies |
 |---|---------|-------------|--------------|
-| 01 | Core Extension | pgrx rewrite of pg_walsizer | None |
+| 01 | Core Extension | pgrx extension (Complete) | None |
 | 02 | Auto-Shrink | Automatic size decrease | 01 |
 | 03 | SQL Functions | Observability via SQL | 01, 04 |
 | 04 | History Table | Audit trail | 01 |
