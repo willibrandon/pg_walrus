@@ -910,12 +910,16 @@ The extension works by:
 ### Source Structure
 ```
 src/
-├── lib.rs              # Entry point, _PG_init, GUC registration, SQL functions, tests
+├── lib.rs              # Entry point, _PG_init, GUC registration, pg_schema wrappers
 ├── worker.rs           # Background worker implementation
 ├── stats.rs            # Checkpoint statistics access (version-specific)
 ├── config.rs           # ALTER SYSTEM implementation
 ├── guc.rs              # GUC parameter definitions
-└── history.rs          # History table operations (insert, cleanup)
+├── history.rs          # History table operations (insert, cleanup)
+├── shmem.rs            # Shared memory state (WalrusState, PgLwLock)
+├── algorithm.rs        # Sizing algorithms (calculate_new_size, compute_recommendation)
+├── functions.rs        # SQL function implementations (status, history, analyze, etc.)
+└── tests.rs            # PostgreSQL integration tests (#[pg_test])
 ```
 
 ## GUC Parameters
@@ -989,6 +993,8 @@ Supports PostgreSQL 15+ due to `pgstat_fetch_stat_checkpointer()` API. Version-s
 - Rust 1.83+ (latest stable, edition 2024) + pgrx 0.16.1, libc 0.2 (002-auto-shrink)
 - N/A (modifies postgresql.auto.conf via ALTER SYSTEM) (002-auto-shrink)
 - PostgreSQL table (`walrus.history`) with BIGSERIAL primary key, TIMESTAMPTZ, JSONB (003-history-table)
+- Rust 1.83+ (edition 2024) + pgrx 0.16.1 + pgrx 0.16.1, serde_json 1.x, libc 0.2 (004-sql-observability-functions)
+- PostgreSQL shared memory (ephemeral), walrus.history table (persistent) (004-sql-observability-functions)
 
 ## Recent Changes
 - 001-pgrx-core-rewrite: Added Rust 1.83+ (latest stable, edition 2024) + pgrx 0.16.1, libc (FFI compatibility)

@@ -74,27 +74,32 @@ unsafe fn alter_max_wal_size(new_value: i32) {
 
 /// Execute ALTER SYSTEM SET max_wal_size = <new_value>.
 ///
-/// This function sets up the transaction context, constructs the necessary
-/// AST nodes, executes AlterSystemSetConfigFile, and commits the transaction.
+/// This function detects the calling context:
+/// - From SQL function context: Calls AlterSystemSetConfigFile directly
+///   (we're already in a valid memory/transaction context)
+/// - From background worker: Sets up transaction, calls, then commits
 ///
 /// Returns Ok(()) on success, Err with a message on failure.
 pub fn execute_alter_system(new_value: i32) -> Result<(), &'static str> {
     unsafe {
-        // Ensure resource owner exists for transaction management
-        if pg_sys::CurrentResourceOwner.is_null() {
-            let name = CString::new("pg_walrus").expect("CString::new failed");
-            pg_sys::CurrentResourceOwner =
-                pg_sys::ResourceOwnerCreate(ptr::null_mut(), name.as_ptr());
+        // Check if we're already in a transaction (e.g., called from SQL function)
+        let in_transaction = pg_sys::IsTransactionState();
+
+        if in_transaction {
+            // SQL function context: call AlterSystemSetConfigFile directly
+            // No transaction handling needed - we're already in a valid context
+            alter_max_wal_size(new_value);
+        } else {
+            // Background worker context: need to set up transaction
+            if pg_sys::CurrentResourceOwner.is_null() {
+                let name = CString::new("pg_walrus").expect("CString::new failed");
+                pg_sys::CurrentResourceOwner =
+                    pg_sys::ResourceOwnerCreate(ptr::null_mut(), name.as_ptr());
+            }
+            pg_sys::StartTransactionCommand();
+            alter_max_wal_size(new_value);
+            pg_sys::CommitTransactionCommand();
         }
-
-        // Start transaction for ALTER SYSTEM
-        pg_sys::StartTransactionCommand();
-
-        // Build and execute the ALTER SYSTEM statement
-        alter_max_wal_size(new_value);
-
-        // Commit the transaction
-        pg_sys::CommitTransactionCommand();
     }
 
     Ok(())
