@@ -166,13 +166,572 @@ make                    # Build extension
 sudo make install       # Install to PostgreSQL
 ```
 
-### Future Rust Extension (pg_walrus)
+### Rust Extension (pg_walrus) - Quick Reference
 ```bash
-cargo pgrx build --features pg17           # Build for PG17
-cargo pgrx test pg17                       # Run pgrx integration tests
-cargo pgrx regress pg17                    # Run pg_regress SQL tests
-cargo pgrx package --pg-config /usr/bin/pg_config  # Create package
+cargo pgrx run pg18                        # Build, install, and open psql
+cargo pgrx test pg18                       # Run pgrx integration tests
+cargo pgrx regress pg18                    # Run pg_regress SQL tests
+cargo pgrx package --pg-config /usr/bin/pg_config  # Create distribution package
 ```
+
+## Comprehensive cargo pgrx Reference
+
+### Command Overview
+
+| Command | Purpose | Default Mode |
+|---------|---------|--------------|
+| `init` | Initialize pgrx development environment | N/A |
+| `new` | Create new extension project | N/A |
+| `run` | Build, install, and launch psql | debug |
+| `test` | Run `#[pg_test]` tests | debug |
+| `regress` | Run pg_regress SQL tests | debug |
+| `install` | Install extension to PostgreSQL | debug |
+| `package` | Create distribution package | **release** |
+| `schema` | Generate SQL schema files | debug |
+| `start` | Start pgrx-managed PostgreSQL | N/A |
+| `stop` | Stop pgrx-managed PostgreSQL | N/A |
+| `status` | Check PostgreSQL instance status | N/A |
+| `connect` | Connect to database via psql | N/A |
+| `info` | Query pgrx environment | N/A |
+| `get` | Get property from control file | N/A |
+| `upgrade` | Upgrade pgrx dependency versions | N/A |
+| `cross` | Cross-compilation utilities | N/A |
+
+### cargo pgrx init
+
+Initialize pgrx development environment (one-time setup).
+
+```bash
+# Initialize all PostgreSQL versions (downloads and compiles)
+cargo pgrx init
+
+# Initialize specific version only
+cargo pgrx init --pg18 download
+
+# Use existing PostgreSQL installation
+cargo pgrx init --pg18 /usr/local/pgsql/bin/pg_config
+
+# Advanced: Configure PostgreSQL compilation
+cargo pgrx init --pg18 download --configure-flag="--with-openssl"
+
+# Compile with Valgrind detection
+cargo pgrx init --pg18 download --valgrind
+
+# Multi-threaded compilation
+cargo pgrx init -j 8
+```
+
+**Key Options:**
+- `--pg13`, `--pg14`, `--pg15`, `--pg16`, `--pg17`, `--pg18`: Specify version path or `download`
+- `--base-port PORT`: Base port for managed instances (default: 28800)
+- `--base-testing-port PORT`: Base port for testing instances
+- `--configure-flag FLAG`: Pass flags to PostgreSQL configure (repeatable)
+- `--valgrind`: Enable Valgrind detection in compiled PostgreSQL
+- `-j, --jobs N`: Parallel make jobs
+
+**Environment Variables:**
+- `PG13_PG_CONFIG` through `PG18_PG_CONFIG`: Paths to pg_config for each version
+- `ICU_CFLAGS`, `ICU_LIBS`: Custom ICU library configuration
+- `PKG_CONFIG_PATH`: Package config search path
+
+### cargo pgrx new
+
+Create a new extension project scaffold.
+
+```bash
+# Create new extension
+cargo pgrx new my_extension
+
+# Create extension with background worker template
+cargo pgrx new my_extension --bgworker
+```
+
+**Generated Files:**
+```
+my_extension/
+├── .cargo/config.toml     # Cargo build configuration
+├── Cargo.toml             # Extension manifest
+├── src/
+│   ├── lib.rs             # Main extension code
+│   └── bin/pgrx_embed.rs  # SQL generation binary
+├── my_extension.control   # PostgreSQL control file
+├── .gitignore
+└── tests/pg_regress/
+    ├── sql/setup.sql      # pg_regress setup
+    └── expected/setup.out # Expected output
+```
+
+**Name Validation:** Extension name must match `[a-z0-9_]` pattern (lowercase alphanumeric and underscore only).
+
+### cargo pgrx run
+
+Build, install, and open interactive psql session.
+
+```bash
+# Run with default settings
+cargo pgrx run pg18
+
+# Run in release mode
+cargo pgrx run pg18 --release
+
+# Connect to specific database
+cargo pgrx run pg18 my_database
+
+# Use pgcli instead of psql
+cargo pgrx run pg18 --pgcli
+
+# Build and install only (don't launch psql)
+cargo pgrx run pg18 --install-only
+
+# Run under Valgrind
+cargo pgrx run pg18 --valgrind
+```
+
+**Key Options:**
+- `-r, --release`: Compile in release mode
+- `--profile PROFILE`: Use named Cargo profile
+- `--pgcli`: Use pgcli instead of psql
+- `--install-only`: Install without launching psql
+- `--valgrind`: Start PostgreSQL under Valgrind
+- `-F, --features FEATURES`: Enable Cargo features
+
+**Environment Variables:**
+- `PG_VERSION`: Default PostgreSQL version
+- `PGRX_PGCLI`: Set to enable pgcli by default
+
+### cargo pgrx test
+
+Run `#[pg_test]` integration tests.
+
+```bash
+# Run all tests for PostgreSQL 17
+cargo pgrx test pg18
+
+# Run specific test by name
+cargo pgrx test pg18 test_guc_default
+
+# Run tests for all configured versions
+cargo pgrx test all
+
+# Run in release mode
+cargo pgrx test pg18 --release
+
+# Skip schema regeneration (faster iteration)
+cargo pgrx test pg18 --no-schema
+
+# Run as different system user
+cargo pgrx test pg18 --runas postgres
+
+# Use custom data directory
+cargo pgrx test pg18 --pgdata /tmp/pgrx-test-data
+```
+
+**Key Options:**
+- `-r, --release`: Compile in release mode
+- `--profile PROFILE`: Use named Cargo profile
+- `-n, --no-schema`: Skip schema regeneration
+- `--runas USER`: Run as specific system user (requires sudo)
+- `--pgdata DIR`: Custom PostgreSQL data directory
+- `-F, --features FEATURES`: Enable Cargo features
+- `--no-default-features`: Disable default features
+- `--all-features`: Enable all features
+
+**Environment Variables:**
+- `PG_VERSION`: Default PostgreSQL version
+- `PGRX_BUILD_PROFILE`: Build profile name
+- `PGRX_FEATURES`: Features to enable
+- `PGRX_NO_DEFAULT_FEATURES`: Disable default features
+- `PGRX_ALL_FEATURES`: Enable all features
+- `PGRX_NO_SCHEMA`: Skip schema generation
+- `CARGO_PGRX_TEST_RUNAS`: User to run tests as
+- `CARGO_PGRX_TEST_PGDATA`: Custom data directory
+- `RUST_LOG`: Logging level (debug, trace, info, warn)
+- `PGRX_TEST_SKIP`: Skip all tests if set
+
+### cargo pgrx regress
+
+Run pg_regress SQL-based tests.
+
+```bash
+# Run all pg_regress tests
+cargo pgrx regress pg18
+
+# Run specific test file
+cargo pgrx regress pg18 guc_params
+
+# Auto-accept new/changed test output
+cargo pgrx regress pg18 --auto
+
+# Reset database before testing
+cargo pgrx regress pg18 --resetdb
+
+# Use custom database name
+cargo pgrx regress pg18 --dbname my_test_db
+
+# Add PostgreSQL configuration
+cargo pgrx regress pg18 --postgresql-conf log_min_messages=debug1
+
+# Run in release mode
+cargo pgrx regress pg18 --release
+```
+
+**Key Options:**
+- `-a, --auto`: Auto-accept new test output AND overwrite failed test output
+- `--resetdb`: Recreate test database before running
+- `--dbname NAME`: Override generated database name
+- `--postgresql-conf KEY=VALUE`: Custom postgresql.conf settings (repeatable)
+- `-r, --release`: Compile in release mode
+- `-n, --no-schema`: Skip schema regeneration
+- `--runas USER`: Run as specific system user
+
+**Test File Structure:**
+```
+tests/pg_regress/
+├── sql/
+│   ├── setup.sql           # SPECIAL: Always runs first
+│   ├── test_guc.sql        # Test files (alphabetical order)
+│   └── test_worker.sql
+├── expected/
+│   ├── setup.out           # Expected output for setup.sql
+│   ├── test_guc.out        # Expected output for test_guc.sql
+│   └── test_worker.out
+└── results/                # Generated during tests (gitignored)
+```
+
+**Important:** `setup.sql` is special - it always runs first regardless of alphabetical order.
+
+### cargo pgrx install
+
+Install extension to PostgreSQL instance.
+
+```bash
+# Install to default PostgreSQL (first in PATH)
+cargo pgrx install
+
+# Install to specific PostgreSQL
+cargo pgrx install --pg-config /usr/local/pgsql/bin/pg_config
+
+# Install in release mode
+cargo pgrx install --release
+
+# Install with sudo (for system PostgreSQL)
+cargo pgrx install --sudo
+
+# Build in test mode (includes pg_test feature)
+cargo pgrx install --test
+```
+
+**Key Options:**
+- `-c, --pg-config PATH`: Path to pg_config (default: first in $PATH)
+- `-s, --sudo`: Use sudo for installation
+- `-r, --release`: Compile in release mode
+- `--test`: Build in test mode
+- `--profile PROFILE`: Use named Cargo profile
+- `-F, --features FEATURES`: Enable Cargo features
+
+### cargo pgrx package
+
+Create distribution package for deployment.
+
+```bash
+# Create package (defaults to release mode)
+cargo pgrx package --pg-config /usr/local/pgsql/bin/pg_config
+
+# Create debug package
+cargo pgrx package --pg-config /path/to/pg_config --debug
+
+# Custom output directory
+cargo pgrx package --pg-config /path/to/pg_config --out-dir ./dist/
+
+# Cross-compilation
+cargo pgrx package --pg-config /path/to/pg_config --target x86_64-unknown-linux-gnu
+```
+
+**Key Options:**
+- `-c, --pg-config PATH`: Path to pg_config (required)
+- `--debug`: Compile in debug mode (default is **release**)
+- `--out-dir DIR`: Output directory (default: `./target/[debug|release]/extname-pgXX/`)
+- `--target TARGET`: Cross-compilation target
+
+**Output Structure:**
+```
+target/release/pg_walrus-pg18/
+├── usr/share/postgresql/17/extension/
+│   ├── pg_walrus.control
+│   └── pg_walrus--0.1.0.sql
+└── usr/lib/postgresql/17/lib/
+    └── pg_walrus.so
+```
+
+### cargo pgrx schema
+
+Generate SQL schema files from extension source.
+
+```bash
+# Generate schema to stdout
+cargo pgrx schema pg18
+
+# Generate schema to file
+cargo pgrx schema pg18 --out schema.sql
+
+# Generate GraphViz DOT diagram
+cargo pgrx schema pg18 --dot schema.dot
+
+# Skip rebuild (use existing .so)
+cargo pgrx schema pg18 --skip-build
+
+# Generate in release mode
+cargo pgrx schema pg18 --release
+```
+
+**Key Options:**
+- `-o, --out FILE`: Output SQL file (default: stdout)
+- `-d, --dot FILE`: Output GraphViz DOT file
+- `--skip-build`: Don't rebuild extension
+- `-r, --release`: Compile in release mode
+- `-n, --no-schema`: Don't regenerate schema (use cached)
+
+### cargo pgrx start / stop / status
+
+Manage pgrx-managed PostgreSQL instances.
+
+```bash
+# Start PostgreSQL 17
+cargo pgrx start pg18
+
+# Start with custom configuration
+cargo pgrx start pg18 --postgresql-conf log_statement=all
+
+# Start under Valgrind
+cargo pgrx start pg18 --valgrind
+
+# Stop PostgreSQL 17
+cargo pgrx stop pg18
+
+# Stop all instances
+cargo pgrx stop all
+
+# Check status
+cargo pgrx status pg18
+cargo pgrx status all
+```
+
+**start Options:**
+- `--postgresql-conf KEY=VALUE`: Runtime configuration (repeatable)
+- `--valgrind`: Start under Valgrind
+
+### cargo pgrx connect
+
+Connect to database without building/installing extension.
+
+```bash
+# Connect to default database
+cargo pgrx connect pg18
+
+# Connect to specific database
+cargo pgrx connect pg18 my_database
+
+# Use pgcli instead of psql
+cargo pgrx connect pg18 --pgcli
+```
+
+### cargo pgrx info
+
+Query pgrx development environment.
+
+```bash
+# Get PostgreSQL installation path
+cargo pgrx info path pg18
+# Output: ~/.pgrx/17.2/pgrx-install
+
+# Get pg_config path
+cargo pgrx info pg-config pg18
+# Output: ~/.pgrx/17.2/pgrx-install/bin/pg_config
+
+# Get specific version number
+cargo pgrx info version pg18
+# Output: 17.2
+```
+
+### cargo pgrx get
+
+Extract properties from extension control file.
+
+```bash
+# Get extension name
+cargo pgrx get extname
+# Output: pg_walrus
+
+# Get git hash (for versioning)
+cargo pgrx get git_hash
+# Output: abc1234...
+
+# Get any control file property
+cargo pgrx get default_version
+cargo pgrx get comment
+```
+
+### cargo pgrx upgrade
+
+Upgrade pgrx dependency versions in Cargo.toml.
+
+```bash
+# Upgrade to latest stable
+cargo pgrx upgrade
+
+# Upgrade to specific version
+cargo pgrx upgrade --to 0.16.1
+
+# Include pre-release versions
+cargo pgrx upgrade --include-prereleases
+
+# Dry run (show changes without applying)
+cargo pgrx upgrade --dry-run
+```
+
+**Key Options:**
+- `--to VERSION`: Target version (default: latest stable)
+- `--include-prereleases`: Include pre-release versions
+- `-n, --dry-run`: Print changes without modifying Cargo.toml
+
+### cargo pgrx cross
+
+Cross-compilation utilities (experimental).
+
+```bash
+# Generate cross-compilation target bundle
+cargo pgrx cross pgrx-target --pg-config /path/to/target/pg_config
+
+# Specify output filename
+cargo pgrx cross pgrx-target -o my-target.tgz
+
+# Specify expected PostgreSQL version
+cargo pgrx cross pgrx-target --pg-version 17
+```
+
+### Environment Variables Reference
+
+**Global Variables:**
+| Variable | Description |
+|----------|-------------|
+| `CARGO_PGRX` | Path to cargo-pgrx binary |
+| `PGRX_HOME` | pgrx installation directory (default: `~/.pgrx/`) |
+| `PGRX_BUILD_FLAGS` | Additional build flags for all commands |
+| `RUST_LOG` | Logging level (trace, debug, info, warn, error) |
+
+**Build Variables:**
+| Variable | Description |
+|----------|-------------|
+| `PG_VERSION` | Default PostgreSQL version |
+| `CARGO_TARGET_DIR` | Override cargo target directory |
+| `CARGO_PKG_VERSION` | Extension version (auto-detected) |
+| `PGRX_BUILD_PROFILE` | Build profile name |
+| `PGRX_FEATURES` | Features to enable |
+| `PGRX_NO_DEFAULT_FEATURES` | Disable default features |
+| `PGRX_ALL_FEATURES` | Enable all features |
+| `PGRX_NO_SCHEMA` | Skip schema generation |
+
+**Test Variables:**
+| Variable | Description |
+|----------|-------------|
+| `CARGO_PGRX_TEST_RUNAS` | User to run tests as |
+| `CARGO_PGRX_TEST_PGDATA` | Custom test data directory |
+| `PGRX_TEST_SKIP` | Skip all tests if set |
+| `PGRX_REGRESS_TESTING` | Set during regress tests |
+
+**PostgreSQL Configuration:**
+| Variable | Description |
+|----------|-------------|
+| `PG13_PG_CONFIG` through `PG18_PG_CONFIG` | Paths to pg_config per version |
+| `DBNAME` | Default database name |
+| `PGRX_PGCLI` | Use pgcli instead of psql |
+
+### Common Workflows
+
+**Development Iteration:**
+```bash
+# Fast iteration during development
+cargo pgrx run pg18                    # Build, install, test interactively
+cargo pgrx test pg18 --no-schema       # Skip schema regen for faster tests
+cargo pgrx regress pg18 --auto         # Auto-accept changed output
+```
+
+**Multi-Version Testing:**
+```bash
+# Test all supported versions
+for v in pg15 pg16 pg17 pg18; do
+    cargo pgrx test $v || exit 1
+    cargo pgrx regress $v || exit 1
+done
+```
+
+**Release Build:**
+```bash
+# Create release packages for deployment
+cargo pgrx package --pg-config $(which pg_config)
+```
+
+**Debugging:**
+```bash
+# Enable verbose logging
+RUST_LOG=debug cargo pgrx test pg18
+
+# Start PostgreSQL under Valgrind
+cargo pgrx run pg18 --valgrind
+```
+
+### Cargo.toml Feature Configuration
+
+Standard feature configuration for pgrx extensions:
+
+```toml
+[features]
+default = ["pg18"]
+pg13 = ["pgrx/pg13", "pgrx-tests/pg13"]
+pg14 = ["pgrx/pg14", "pgrx-tests/pg14"]
+pg15 = ["pgrx/pg15", "pgrx-tests/pg15"]
+pg16 = ["pgrx/pg16", "pgrx-tests/pg16"]
+pg17 = ["pgrx/pg17", "pgrx-tests/pg17"]
+pg18 = ["pgrx/pg18", "pgrx-tests/pg18"]
+pg_test = []
+
+[lib]
+crate-type = ["cdylib", "lib"]
+
+# Required for proper panic handling in PostgreSQL
+[profile.dev]
+panic = "unwind"
+
+[profile.release]
+panic = "unwind"
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+```
+
+### Troubleshooting
+
+**"extension must be loaded via shared_preload_libraries"**
+- Background workers require loading at PostgreSQL startup
+- Add to postgresql.conf: `shared_preload_libraries = 'pg_walrus'`
+- For tests: Implement `pg_test` module with `postgresql_conf_options()`
+
+**Tests fail to find background worker in pg_stat_activity**
+- Ensure `pg_test` module exists at crate root (see Testing Strategy section)
+- Verify `postgresql_conf_options()` returns correct shared_preload_libraries
+
+**Schema generation fails**
+- Try `--skip-build` if extension compiles but schema fails
+- Check `RUST_LOG=debug` for detailed errors
+- Verify `pg_module_magic!()` is present
+
+**Permission denied during install**
+- Use `--sudo` flag: `cargo pgrx install --sudo`
+- Or run entire command with sudo (not recommended)
+
+**Cross-compilation issues**
+- Use `cargo pgrx cross pgrx-target` to generate target bundle
+- Set `PGRX_PG_CONFIG_PATH` for cross-compilation pg_config
 
 ## Testing Strategy
 
@@ -183,8 +742,8 @@ pg_walrus uses three complementary testing approaches:
 Tests that run inside PostgreSQL with full access to SPI, GUCs, and system catalogs.
 
 ```bash
-cargo pgrx test pg17                    # Run all tests for PG17
-cargo pgrx test pg17 test_guc_default   # Run specific test
+cargo pgrx test pg18                    # Run all tests for PG17
+cargo pgrx test pg18 test_guc_default   # Run specific test
 ```
 
 **Use for**: GUC parameter verification, background worker visibility via `pg_stat_activity`, any test requiring database context.
@@ -251,10 +810,10 @@ cargo test --lib        # Run pure Rust tests only
 SQL-based tests using PostgreSQL's native pg_regress framework.
 
 ```bash
-cargo pgrx regress pg17                 # Run all pg_regress tests
-cargo pgrx regress pg17 guc_params      # Run specific test
-cargo pgrx regress pg17 --auto          # Auto-accept new output
-cargo pgrx regress pg17 --resetdb       # Reset database first
+cargo pgrx regress pg18                 # Run all pg_regress tests
+cargo pgrx regress pg18 guc_params      # Run specific test
+cargo pgrx regress pg18 --auto          # Auto-accept new output
+cargo pgrx regress pg18 --resetdb       # Reset database first
 ```
 
 **Directory structure**:
