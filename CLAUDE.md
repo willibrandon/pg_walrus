@@ -157,6 +157,28 @@ Commit messages MUST NOT contain AI assistant attribution or co-authorship claim
 - Focus on technical content and rationale
 - Follow project's existing commit message conventions
 
+## File Size Limits
+
+**ABSOLUTE PROHIBITION:**
+- Source code files exceeding 900 lines of code (LOC)
+- Adding code to a file that would push it over 900 LOC
+
+**REQUIRED behavior:**
+- When a file approaches 900 LOC, proactively split into logical modules
+- Extract related functionality into separate files before hitting the limit
+- Use Rust's module system to organize code (e.g., `mod submodule;`)
+
+**Measurement:**
+- Count all lines including comments and blank lines
+- Use `wc -l <file>` to check
+
+**Splitting Strategies for pg_walrus:**
+- Extract pure functions into utility modules
+- Split tests into dedicated test files
+- Move GUC definitions to dedicated `guc.rs`
+- Extract statistics access to dedicated `stats.rs`
+- Separate worker logic from initialization
+
 ## Build Commands
 
 ### Quick Reference

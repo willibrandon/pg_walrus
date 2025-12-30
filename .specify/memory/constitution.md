@@ -1,21 +1,20 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 1.5.0 → 1.6.0
-Bump rationale: MINOR - Added XIV. No Regression principle prohibiting version downgrades
+Version change: 1.6.0 → 1.7.0
+Bump rationale: MINOR - Added XV. File Size Limits principle enforcing 900 LOC maximum
 
 Modified principles: None
 
 Added sections:
-- XIV. No Regression - Prohibits recommending older editions/versions, requires adapting code
-  to stricter newer requirements, Rust 2024 Edition specific guidance
+- XV. File Size Limits - Source code files MUST NOT exceed 900 lines of code
 
 Removed sections: None
 
 Templates status:
-- ✅ plan-template.md - Compatible (Technical Context already version-agnostic)
-- ✅ spec-template.md - Compatible (no version specifics)
-- ✅ tasks-template.md - Compatible (no version specifics)
+- ✅ plan-template.md - Compatible (no file size specifics)
+- ✅ spec-template.md - Compatible (no file size specifics)
+- ✅ tasks-template.md - Compatible (no file size specifics)
 
 Follow-up: None
 -->
@@ -677,6 +676,43 @@ When encountering build failures after version upgrades:
 
 **Rationale**: Downgrading versions to avoid fixing code creates technical debt and prevents benefiting from improvements in newer releases. The solution to stricter requirements is better code, not older tooling.
 
+### XV. File Size Limits (NON-NEGOTIABLE)
+
+Source code files MUST NOT exceed 900 lines of code. Large files indicate poor modularization.
+
+**ABSOLUTE PROHIBITION:**
+- Source code files exceeding 900 lines of code (LOC)
+- Adding code to a file that would push it over 900 LOC
+- Justifying large files with "it's all related" or "splitting would be harder"
+
+**REQUIRED behavior:**
+- When a file approaches 900 LOC, proactively split into logical modules
+- Extract related functionality into separate files before hitting the limit
+- Use Rust's module system to organize code (e.g., `mod submodule;`)
+- Prefer multiple focused files over monolithic files
+
+**Measurement:**
+- Count all lines including comments and blank lines
+- Use `wc -l <file>` or equivalent tooling
+- Check file sizes during code review and CI
+
+**Splitting Strategies:**
+- Extract pure functions into utility modules
+- Separate types/structs from implementations
+- Split tests into dedicated test files
+- Move GUC definitions to dedicated `guc.rs`
+- Extract statistics access to dedicated `stats.rs`
+- Separate worker logic from initialization
+
+**When Approaching the Limit:**
+1. Identify logical boundaries within the file
+2. Create new module files for each boundary
+3. Move related functions, types, and tests together
+4. Update `mod` declarations and `use` statements
+5. Verify all tests pass after splitting
+
+**Rationale**: Large files are difficult to navigate, understand, and maintain. They indicate that a module has too many responsibilities. Enforcing a hard limit forces proactive modularization and results in more focused, testable code units.
+
 ## Additional Constraints
 
 ### Technology Stack
@@ -744,4 +780,4 @@ This constitution supersedes all other practices. Amendments require:
 
 **Guidance File**: See `CLAUDE.md` for runtime development guidance.
 
-**Version**: 1.6.0 | **Ratified**: 2025-12-29 | **Last Amended**: 2025-12-29
+**Version**: 1.7.0 | **Ratified**: 2025-12-29 | **Last Amended**: 2025-12-30
