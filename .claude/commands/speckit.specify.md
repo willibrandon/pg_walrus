@@ -267,6 +267,22 @@ Success criteria must be:
 - "React components render efficiently" (framework-specific)
 - "Redis cache hit rate above 80%" (technology-specific)
 
+## MANDATORY: pgrx Background Worker Testing Requirement
+
+Extensions with background workers MUST include a `pg_test` module at crate root with `postgresql_conf_options()`:
+
+```rust
+#[cfg(test)]
+pub mod pg_test {
+    pub fn setup(_options: Vec<&str>) {}
+    pub fn postgresql_conf_options() -> Vec<&'static str> {
+        vec!["shared_preload_libraries='extension_name'"]
+    }
+}
+```
+
+Without this module, background worker tests WILL FAIL. pgrx-tests calls this function to configure PostgreSQL BEFORE startup.
+
 ## pgrx Reference
 
 **Local pgrx Repository**: `/Users/brandon/src/pgrx/`

@@ -190,8 +190,11 @@ mod tests {
 }
 ```
 
-**Background worker testing** requires `postgresql_conf_options()`:
+**MANDATORY: Background worker testing requires `pg_test` module with `postgresql_conf_options()`**:
+
 ```rust
+// MANDATORY - Must be at crate root (src/lib.rs)
+// WITHOUT THIS MODULE, BACKGROUND WORKER TESTS WILL FAIL
 #[cfg(test)]
 pub mod pg_test {
     pub fn setup(_options: Vec<&str>) {}
@@ -201,6 +204,18 @@ pub mod pg_test {
     }
 }
 ```
+
+**Why this is MANDATORY**:
+- pgrx-tests calls `postgresql_conf_options()` to configure PostgreSQL BEFORE starting
+- Without this module, `shared_preload_libraries` is NOT set in postgresql.auto.conf
+- Background workers ONLY register when loaded via `shared_preload_libraries`
+- Tests verifying background worker visibility (`pg_stat_activity`) WILL FAIL without this
+
+**Failure mode without pg_test module**:
+- PostgreSQL starts without the extension in shared_preload_libraries
+- `_PG_init()` only called during CREATE EXTENSION (too late for bgworker)
+- Background worker never spawns
+- `SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE backend_type = 'pg_walrus')` returns FALSE
 
 ### 2. Pure Rust Unit Tests (`#[test]`)
 

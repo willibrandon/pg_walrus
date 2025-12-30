@@ -149,11 +149,14 @@ SET walrus.threshold = 1000; -- maximum
 
 ## Test Infrastructure
 
-### Background Worker Testing Configuration
+### MANDATORY: pg_test Module for Background Worker Testing
 
-For testing extensions with background workers, pgrx-tests supports `shared_preload_libraries` via the `pg_test` module:
+**THIS IS NOT OPTIONAL. Extensions with background workers MUST include this module.**
+
+For testing extensions with background workers, pgrx-tests REQUIRES a `pg_test` module at crate root with `postgresql_conf_options()`:
 
 ```rust
+// MANDATORY - Must be at crate root (src/lib.rs)
 #[cfg(test)]
 pub mod pg_test {
     /// Called once at test framework initialization
@@ -161,11 +164,37 @@ pub mod pg_test {
         // Optional: one-time setup code
     }
 
-    /// PostgreSQL configuration for tests
+    /// PostgreSQL configuration for tests - MANDATORY for background worker testing
     pub fn postgresql_conf_options() -> Vec<&'static str> {
         vec!["shared_preload_libraries='pg_walrus'"]
     }
 }
+```
+
+**Why this is MANDATORY**:
+
+1. pgrx-tests framework calls `crate::pg_test::postgresql_conf_options()` during test initialization
+2. The returned settings are written to `postgresql.auto.conf` BEFORE PostgreSQL starts
+3. PostgreSQL then loads the extension via `shared_preload_libraries` during startup
+4. `_PG_init()` is called during this startup phase, allowing background worker registration
+5. Background workers can ONLY be registered during `shared_preload_libraries` loading
+
+**What happens WITHOUT the pg_test module**:
+
+1. pgrx-tests starts PostgreSQL without `shared_preload_libraries='pg_walrus'`
+2. Extension is loaded via `CREATE EXTENSION` after PostgreSQL is running
+3. `_PG_init()` is called, but `process_shared_preload_libraries_in_progress` is FALSE
+4. Background worker registration is skipped (too late in lifecycle)
+5. Background worker NEVER spawns
+6. Tests checking `pg_stat_activity` for worker presence FAIL
+
+**Verification**:
+
+After adding the `pg_test` module, you can verify it works by checking `postgresql.auto.conf`:
+
+```bash
+cat target/test-pgdata/*/postgresql.auto.conf | grep shared_preload
+# Should show: shared_preload_libraries='pg_walrus'
 ```
 
 ### Test Execution Order (pgrx-tests)

@@ -143,6 +143,24 @@ Every task MUST strictly follow this format:
 - Tasks MUST include specific file paths for all code changes
 - Do NOT generate tasks with vague descriptions like "implement remaining features"
 
+## MANDATORY: pgrx Background Worker Testing Requirement
+
+Extensions with background workers MUST include a `pg_test` module at crate root with `postgresql_conf_options()`:
+
+```rust
+#[cfg(test)]
+pub mod pg_test {
+    pub fn setup(_options: Vec<&str>) {}
+    pub fn postgresql_conf_options() -> Vec<&'static str> {
+        vec!["shared_preload_libraries='extension_name'"]
+    }
+}
+```
+
+Without this module, background worker tests WILL FAIL. pgrx-tests calls this function to configure PostgreSQL BEFORE startup.
+
+**Task generation MUST include**: A task to create the `pg_test` module for any extension with background workers.
+
 ## pgrx Reference
 
 **Local pgrx Repository**: `/Users/brandon/src/pgrx/`

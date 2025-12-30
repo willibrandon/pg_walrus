@@ -25,6 +25,19 @@ Rewrite the pg_walsizer PostgreSQL extension in Rust using pgrx. The extension m
 - `CheckPointTimeout` accessed via extern C declaration (pgrx does not expose - see research.md R8)
 - pgrx-tests supports `shared_preload_libraries` via `postgresql_conf_options()` (see research.md R9)
 
+**MANDATORY Testing Infrastructure**:
+Extensions with background workers MUST include a `pg_test` module at crate root:
+```rust
+#[cfg(test)]
+pub mod pg_test {
+    pub fn setup(_options: Vec<&str>) {}
+    pub fn postgresql_conf_options() -> Vec<&'static str> {
+        vec!["shared_preload_libraries='pg_walrus'"]
+    }
+}
+```
+Without this module, background worker tests WILL FAIL. See research.md R9 and contracts/testing.md.
+
 ## Constitution Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*

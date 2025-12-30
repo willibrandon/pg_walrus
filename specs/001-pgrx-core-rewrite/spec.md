@@ -138,3 +138,32 @@ A database administrator operates PostgreSQL clusters running versions 15, 16, 1
 ## Implementation Notes
 
 - **CheckPointTimeout access**: pgrx does not expose `pg_sys::CheckPointTimeout` (bindgen does not include `postmaster/bgwriter.h`). Access via extern C declaration is required. See research.md R8 for the definitive solution.
+
+## MANDATORY Testing Infrastructure for Background Workers
+
+Extensions with background workers MUST include a `pg_test` module at crate root with `postgresql_conf_options()`:
+
+```rust
+#[cfg(test)]
+pub mod pg_test {
+    pub fn setup(_options: Vec<&str>) {}
+
+    pub fn postgresql_conf_options() -> Vec<&'static str> {
+        vec!["shared_preload_libraries='pg_walrus'"]
+    }
+}
+```
+
+**Why this is MANDATORY**:
+- pgrx-tests calls `postgresql_conf_options()` to configure PostgreSQL before starting
+- Without this module, `shared_preload_libraries` is NOT set
+- Background workers ONLY start when loaded via `shared_preload_libraries`
+- Tests verifying background worker visibility (e.g., `pg_stat_activity`) WILL FAIL without this
+
+**Failure mode without pg_test module**:
+- PostgreSQL starts without loading the extension via shared_preload_libraries
+- `_PG_init()` is only called during CREATE EXTENSION (too late for bgworker registration)
+- Background worker never spawns
+- `SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE backend_type = 'pg_walrus')` returns FALSE
+
+See research.md R9 for complete details.

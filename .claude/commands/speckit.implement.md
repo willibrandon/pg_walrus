@@ -161,6 +161,35 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, run `/speckit.tasks` first to generate the task list.
 
+## MANDATORY: pgrx Background Worker Testing Requirement
+
+Extensions with background workers MUST include a `pg_test` module at crate root with `postgresql_conf_options()`:
+
+```rust
+// MANDATORY - Must be at crate root (src/lib.rs)
+// WITHOUT THIS MODULE, BACKGROUND WORKER TESTS WILL FAIL
+#[cfg(test)]
+pub mod pg_test {
+    pub fn setup(_options: Vec<&str>) {}
+
+    pub fn postgresql_conf_options() -> Vec<&'static str> {
+        vec!["shared_preload_libraries='extension_name'"]
+    }
+}
+```
+
+**Why this is MANDATORY**:
+- pgrx-tests framework calls `crate::pg_test::postgresql_conf_options()` during test initialization
+- The returned settings are written to `postgresql.auto.conf` BEFORE PostgreSQL starts
+- Background workers can ONLY be registered during `shared_preload_libraries` loading
+- Without this module, background worker tests WILL FAIL
+
+**Implementation MUST verify**:
+1. `pg_test` module exists at crate root
+2. `postgresql_conf_options()` returns the extension name in `shared_preload_libraries`
+3. Delete `target/test-pgdata/` before running tests if config changed
+4. Verify `postgresql.auto.conf` contains correct settings
+
 ## pgrx Reference
 
 **Local pgrx Repository**: `/Users/brandon/src/pgrx/`
