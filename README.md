@@ -63,7 +63,7 @@ cargo install --locked cargo-pgrx
 
 # Initialize pgrx (downloads and compiles Postgres versions to ~/.pgrx/)
 # For a single version:
-cargo pgrx init --pg17 download
+cargo pgrx init --pg18 download
 
 # Or for all supported versions:
 cargo pgrx init
@@ -73,13 +73,13 @@ git clone https://github.com/willibrandon/pg_walrus.git
 cd pg_walrus
 
 # Run interactively with psql
-cargo pgrx run pg17
+cargo pgrx run pg18
 
 # Run integration tests
-cargo pgrx test pg17
+cargo pgrx test pg18
 
 # Run SQL regression tests (requires --postgresql-conf for background worker)
-cargo pgrx regress pg17 --postgresql-conf "shared_preload_libraries='pg_walrus'"
+cargo pgrx regress pg18 --postgresql-conf "shared_preload_libraries='pg_walrus'"
 
 # Create installation package
 cargo pgrx package
@@ -144,7 +144,7 @@ SELECT pg_reload_conf();
 - PostgreSQL 15
 - PostgreSQL 16
 - PostgreSQL 17
-- PostgreSQL 18 (when available)
+- PostgreSQL 18
 
 Requires PostgreSQL 15+ due to `pgstat_fetch_stat_checkpointer()` API.
 
@@ -156,10 +156,10 @@ pg_walrus uses pgrx-managed PostgreSQL instances for development and testing. Th
 
 ```bash
 # Integration tests (automatically configures shared_preload_libraries via pg_test module)
-cargo pgrx test pg17
+cargo pgrx test pg18
 
 # SQL regression tests (requires explicit --postgresql-conf)
-cargo pgrx regress pg17 --postgresql-conf "shared_preload_libraries='pg_walrus'"
+cargo pgrx regress pg18 --postgresql-conf "shared_preload_libraries='pg_walrus'"
 
 # Test all supported versions
 for v in pg15 pg16 pg17 pg18; do
@@ -169,26 +169,3 @@ done
 ```
 
 **Note**: `cargo pgrx test` reads `shared_preload_libraries` from the `pg_test::postgresql_conf_options()` function in `src/lib.rs`. `cargo pgrx regress` does not—you must pass `--postgresql-conf` explicitly for background worker extensions.
-
-## Project Status
-
-| Component | Status |
-|-----------|--------|
-| Core extension | Complete |
-| Enhanced features | Planned |
-
-## Documentation
-
-| Document | Description |
-|----------|-------------|
-| [features/](features/) | Speckit feature documents |
-
-## License
-
-PostgreSQL License (same as PostgreSQL itself)
-
-## Links
-
-- **pg_walrus**: https://github.com/willibrandon/pg_walrus
-- **Original pg_walsizer**: https://github.com/pgedge/pg_walsizer
-- **pgrx Framework**: https://github.com/pgcentralfoundation/pgrx
