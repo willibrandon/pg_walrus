@@ -87,3 +87,12 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 - Use absolute paths
 - ERROR on gate failures or unresolved clarifications
+
+## pgrx Reference
+
+**Local pgrx Repository**: `/Users/brandon/src/pgrx/`
+- Consult this repository for pgrx API patterns, examples, and best practices when planning pgrx extension development
+- Key directories:
+  - `pgrx/` - Core framework code
+  - `pgrx-examples/` - Example extensions demonstrating patterns
+  - `pgrx-macros/` - Procedural macro implementations

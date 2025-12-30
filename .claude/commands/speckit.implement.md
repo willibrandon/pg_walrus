@@ -160,3 +160,13 @@ You **MUST** consider the user input before proceeding (if not empty).
 **CRITICAL**: Implementation is not complete until all tasks are marked [X]. Partial completion is not an acceptable end state.
 
 Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, run `/speckit.tasks` first to generate the task list.
+
+## pgrx Reference
+
+**Local pgrx Repository**: `/Users/brandon/src/pgrx/`
+- Consult this repository for pgrx API patterns, examples, and best practices during implementation
+- Key directories:
+  - `pgrx/` - Core framework code
+  - `pgrx-examples/` - Example extensions demonstrating patterns
+  - `pgrx-macros/` - Procedural macro implementations
+  - `pgrx-pg-sys/` - PostgreSQL bindings

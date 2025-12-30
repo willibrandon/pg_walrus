@@ -179,3 +179,8 @@ Behavior rules:
 - If quota reached with unresolved high-impact categories remaining, explicitly flag them under Deferred with rationale.
 
 Context for prioritization: $ARGUMENTS
+
+## pgrx Reference
+
+**Local pgrx Repository**: `/Users/brandon/src/pgrx/`
+- Consult this repository for pgrx API patterns, examples, and best practices when clarifying pgrx-related requirements

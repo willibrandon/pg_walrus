@@ -30,6 +30,29 @@ This project enforces a strict no-deferral policy. When working on tasks:
 - If genuinely blocked, state `BLOCKER: [specific issue]` and request a decision.
 - Each task must be fully implemented before marking complete.
 
+## Analysis Mode Mandate
+
+When running `/speckit.analyze` or any analysis command:
+
+1. **Coverage gaps = mandatory task creation**: If requirements or edge cases have zero task coverage, CREATE THE TASKS. Do not offer options.
+2. **Never present deferral options**: Do not say "Options: (a) Add now (b) Mark as post-MVP (c) Remove from spec". The only option is (a).
+3. **Edge cases in spec are REQUIREMENTS**: If the spec lists edge cases, they are requirements. Add tasks for them.
+4. **Analysis output must include remediation**: Do not just report issues—fix them by creating concrete tasks.
+5. **"User decision required" is for BLOCKERS only**: Use this phrase only when genuinely blocked (conflicting requirements, missing external info). Never use it to defer edge case coverage.
+6. **Constitution requirements are non-negotiable**: If the constitution mandates something (e.g., tests), add tasks. Do not offer "complexity justification" as an escape hatch.
+
+**Prohibited Analysis Patterns:**
+- "User may proceed without changes"
+- "Options: ... (b) Mark as post-MVP ... (c) Remove from spec"
+- "Edge case handling will need to be added in future iterations"
+- "Add complexity justification to waive requirement"
+- "Choose one: (a) add tests (b) add justification"
+
+**Required Analysis Patterns:**
+- "Coverage gap detected. Adding tasks: T041, T042, T043..."
+- "Edge cases require implementation. Creating tasks now."
+- "BLOCKER: [specific conflicting requirement]. Need decision: [specific question]"
+
 ## Build Commands
 
 ### Original C Extension (pg_walsizer)
@@ -90,3 +113,21 @@ Supports PostgreSQL 15+ due to `pgstat_fetch_stat_checkpointer()` API. Version-s
 - Self-triggered `SIGHUP` detection prevents re-processing own config changes
 - Uses `ResourceOwner` for proper cleanup in transaction commands
 - `AlterSystemSetConfigFile()` requires AST node construction (`AlterSystemStmt` -> `VariableSetStmt` -> `A_Const`)
+
+## Reference Resources
+
+**pgrx Repository**: `/Users/brandon/src/pgrx/`
+- The pgrx framework source is cloned locally for reference
+- Use this to look up API patterns, examples, and best practices
+- Key directories:
+  - `pgrx/` - Core framework code
+  - `pgrx-examples/` - Example extensions
+  - `pgrx-macros/` - Procedural macros
+  - `pgrx-pg-sys/` - PostgreSQL bindings
+
+## Active Technologies
+- Rust 1.83+ (latest stable, edition 2024) + pgrx 0.16.1, libc (FFI compatibility) (001-pgrx-core-rewrite)
+- N/A (extension modifies postgresql.auto.conf via ALTER SYSTEM) (001-pgrx-core-rewrite)
+
+## Recent Changes
+- 001-pgrx-core-rewrite: Added Rust 1.83+ (latest stable, edition 2024) + pgrx 0.16.1, libc (FFI compatibility)

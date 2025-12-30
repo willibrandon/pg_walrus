@@ -1,0 +1,6 @@
+comment = 'pg_walrus:  Created by pgrx'
+default_version = '@CARGO_VERSION@'
+module_pathname = 'pg_walrus'
+relocatable = false
+superuser = true
+trusted = false

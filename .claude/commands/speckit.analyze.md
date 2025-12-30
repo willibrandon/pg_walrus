@@ -197,3 +197,8 @@ Then state: "These tasks are REQUIRED. Updating tasks.md now." (If read-only mod
 ## Context
 
 $ARGUMENTS
+
+## pgrx Reference
+
+**Local pgrx Repository**: `/Users/brandon/src/pgrx/`
+- Consult this repository for pgrx API patterns, examples, and best practices when analyzing pgrx-related code or specifications

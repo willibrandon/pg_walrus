@@ -142,3 +142,11 @@ Every task MUST strictly follow this format:
 - Edge cases from spec.md MUST have corresponding tasks - they are requirements, not optional
 - Tasks MUST include specific file paths for all code changes
 - Do NOT generate tasks with vague descriptions like "implement remaining features"
+
+## pgrx Reference
+
+**Local pgrx Repository**: `/Users/brandon/src/pgrx/`
+- Consult this repository for pgrx API patterns, examples, and best practices when generating pgrx-related tasks
+- Key directories:
+  - `pgrx/` - Core framework code
+  - `pgrx-examples/` - Example extensions demonstrating patterns
