@@ -16,7 +16,7 @@ Rewrite the pg_walsizer PostgreSQL extension in Rust using pgrx. The extension m
 - `#[pg_test]` integration tests: `cargo pgrx test pgXX`
 - `#[test]` pure Rust unit tests: `cargo test --lib`
 - pg_regress SQL tests: `cargo pgrx regress pgXX`
-**Target Platform**: Linux server (PostgreSQL extension, shared_preload_libraries)
+**Target Platform**: Linux, macOS, Windows (PostgreSQL extension, shared_preload_libraries)
 **Project Type**: Single PostgreSQL extension
 **Performance Goals**: Background worker wake cycle matching checkpoint_timeout (~5 minutes default), sub-second configuration changes
 **Constraints**: Memory overhead <1MB, no blocking of PostgreSQL operations, must handle SIGHUP/SIGTERM signals
