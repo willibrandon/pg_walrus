@@ -162,8 +162,10 @@ fn test_guc_dry_run_set_fails() {
     Spi::run("SET walrus.dry_run = true").unwrap();
 }
 
-/// Test that all 9 walrus GUCs are visible in pg_settings with correct context (T029).
+/// Test that all 11 walrus GUCs are visible in pg_settings with correct context (T029).
 /// (walrus.database has context 'postmaster', not 'sighup')
+/// GUCs: enable, max, threshold, shrink_enable, shrink_factor, shrink_intervals, min_size,
+/// history_retention_days, dry_run, cooldown_sec, max_changes_per_hour
 #[pg_test]
 fn test_guc_context_is_sighup() {
     let count = Spi::get_one::<i64>(
@@ -172,8 +174,8 @@ fn test_guc_context_is_sighup() {
     .expect("query failed");
     assert_eq!(
         count,
-        Some(9),
-        "All 9 walrus GUCs (except walrus.database) should have context = 'sighup'"
+        Some(11),
+        "All 11 walrus GUCs (except walrus.database) should have context = 'sighup'"
     );
 }
 
@@ -1120,3 +1122,5 @@ fn test_default_dry_run_false_no_regression() {
     //
     // When dry_run is false, the if block is skipped entirely.
 }
+
+// Rate limiting tests are in rate_limit_tests.rs module

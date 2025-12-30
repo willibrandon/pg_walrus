@@ -11,8 +11,8 @@
 use crate::algorithm::compute_recommendation;
 use crate::config::execute_alter_system;
 use crate::guc::{
-    WALRUS_ENABLE, WALRUS_MAX, WALRUS_MIN_SIZE, WALRUS_SHRINK_ENABLE, WALRUS_SHRINK_FACTOR,
-    WALRUS_SHRINK_INTERVALS, WALRUS_THRESHOLD,
+    WALRUS_COOLDOWN_SEC, WALRUS_ENABLE, WALRUS_MAX, WALRUS_MAX_CHANGES_PER_HOUR, WALRUS_MIN_SIZE,
+    WALRUS_SHRINK_ENABLE, WALRUS_SHRINK_FACTOR, WALRUS_SHRINK_INTERVALS, WALRUS_THRESHOLD,
 };
 use crate::history;
 use crate::shmem::{self, now_unix, read_state};
@@ -133,9 +133,39 @@ fn is_leap_year(year: i32) -> bool {
 /// Note: Not marked #[pg_extern] - exposed via lib.rs walrus module.
 pub fn status() -> JsonB {
     let state = read_state();
+    let now = now_unix();
     let current_size = get_current_max_wal_size();
     let configured_max = WALRUS_MAX.get();
     let timeout_secs = checkpoint_timeout().as_secs() as i32;
+
+    // Rate limiting GUC values
+    let cooldown_sec = WALRUS_COOLDOWN_SEC.get();
+    let max_changes_per_hour = WALRUS_MAX_CHANGES_PER_HOUR.get();
+
+    // Compute cooldown status
+    let cooldown_active = cooldown_sec > 0
+        && state.last_adjustment_time > 0
+        && now < state.last_adjustment_time.saturating_add(cooldown_sec as i64);
+
+    let cooldown_remaining_sec = if cooldown_active {
+        state
+            .last_adjustment_time
+            .saturating_add(cooldown_sec as i64)
+            .saturating_sub(now) as i32
+    } else {
+        0
+    };
+
+    // Compute hourly limit status
+    let hour_expired = if state.hour_window_start > 0 {
+        now >= state.hour_window_start.saturating_add(3600)
+    } else {
+        true
+    };
+
+    let hourly_limit_reached = !hour_expired
+        && max_changes_per_hour > 0
+        && state.changes_this_hour >= max_changes_per_hour;
 
     JsonB(json!({
         "enabled": WALRUS_ENABLE.get(),
@@ -153,6 +183,14 @@ pub fn status() -> JsonB {
         "total_adjustments": state.total_adjustments,
         "quiet_intervals": state.quiet_intervals,
         "at_ceiling": current_size >= configured_max,
+        // Rate limiting fields (7 new fields per FR-012)
+        "cooldown_sec": cooldown_sec,
+        "max_changes_per_hour": max_changes_per_hour,
+        "cooldown_active": cooldown_active,
+        "cooldown_remaining_sec": cooldown_remaining_sec,
+        "changes_this_hour": state.changes_this_hour,
+        "hourly_window_start": unix_timestamp_to_iso(state.hour_window_start),
+        "hourly_limit_reached": hourly_limit_reached,
     }))
 }
 

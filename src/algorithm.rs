@@ -425,6 +425,8 @@ mod tests {
             prev_requested: 0,
             last_check_time: 0,
             last_adjustment_time: 0,
+            changes_this_hour: 0,
+            hour_window_start: 0,
         };
 
         // Base case: valid stats but no history
@@ -441,6 +443,8 @@ mod tests {
             prev_requested: 0,
             last_check_time: 0,
             last_adjustment_time: 0,
+            changes_this_hour: 0,
+            hour_window_start: 0,
         };
 
         // Checkpoint count > 10 adds 20
@@ -457,6 +461,8 @@ mod tests {
             prev_requested: 0,
             last_check_time: 0,
             last_adjustment_time: 0,
+            changes_this_hour: 0,
+            hour_window_start: 0,
         };
 
         // quiet_intervals > 0 adds 15
@@ -473,6 +479,8 @@ mod tests {
             prev_requested: 100,
             last_check_time: 0,
             last_adjustment_time: 0,
+            changes_this_hour: 0,
+            hour_window_start: 0,
         };
 
         // prev_requested > 0 adds 15
@@ -489,6 +497,8 @@ mod tests {
             prev_requested: 100,
             last_check_time: 1000,
             last_adjustment_time: 900,
+            changes_this_hour: 0,
+            hour_window_start: 0,
         };
 
         // All conditions: 50 + 20 + 15 + 15 = 100
@@ -505,6 +515,8 @@ mod tests {
             prev_requested: 100,
             last_check_time: 1000,
             last_adjustment_time: 900,
+            changes_this_hour: 0,
+            hour_window_start: 0,
         };
 
         // Stats unavailable (-1) returns 0

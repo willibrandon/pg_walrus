@@ -37,7 +37,18 @@ pub struct WalrusState {
 
     /// Unix timestamp of last sizing adjustment (seconds since epoch).
     /// Value of 0 means no adjustments have occurred.
+    /// Also used for rate limiting cooldown calculations.
     pub last_adjustment_time: i64,
+
+    /// Number of adjustments made in the current rolling hour window.
+    /// Reset to 1 when hour_window_start + 3600 < now.
+    /// Value of 0 means no adjustments in current window.
+    pub changes_this_hour: i32,
+
+    /// Unix timestamp when the current hour window started (seconds since epoch).
+    /// Value of 0 means no adjustments have occurred since server start.
+    /// Updated when first adjustment in a new hour window occurs.
+    pub hour_window_start: i64,
 }
 
 // SAFETY: WalrusState contains only primitive types (i32, i64) which are Copy
@@ -95,6 +106,7 @@ where
 ///
 /// Called by `walrus.reset()` to clear counters and timestamps.
 /// The worker will see the reset state on its next cycle.
+/// This includes rate limiting state (changes_this_hour, hour_window_start).
 #[inline]
 pub fn reset_state() {
     let mut state = WALRUS_STATE.exclusive();
@@ -103,6 +115,8 @@ pub fn reset_state() {
     state.prev_requested = 0;
     state.last_check_time = 0;
     state.last_adjustment_time = 0;
+    state.changes_this_hour = 0;
+    state.hour_window_start = 0;
 }
 
 /// Get current Unix timestamp in seconds.

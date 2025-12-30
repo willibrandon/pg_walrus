@@ -11,8 +11,9 @@
 use crate::algorithm::{calculate_new_size, calculate_shrink_size};
 use crate::config::execute_alter_system;
 use crate::guc::{
-    WALRUS_DRY_RUN, WALRUS_ENABLE, WALRUS_MAX, WALRUS_MIN_SIZE, WALRUS_SHRINK_ENABLE,
-    WALRUS_SHRINK_FACTOR, WALRUS_SHRINK_INTERVALS, WALRUS_THRESHOLD,
+    WALRUS_COOLDOWN_SEC, WALRUS_DRY_RUN, WALRUS_ENABLE, WALRUS_MAX, WALRUS_MAX_CHANGES_PER_HOUR,
+    WALRUS_MIN_SIZE, WALRUS_SHRINK_ENABLE, WALRUS_SHRINK_FACTOR, WALRUS_SHRINK_INTERVALS,
+    WALRUS_THRESHOLD,
 };
 use crate::history;
 use crate::shmem::{self, now_unix};
@@ -48,6 +49,148 @@ fn send_sighup_to_postmaster() {
 #[inline]
 fn should_skip_iteration() -> bool {
     SUPPRESS_NEXT_SIGHUP.swap(false, Ordering::SeqCst)
+}
+
+/// Result of a rate limit check.
+///
+/// If the adjustment is blocked, contains the reason and metadata for history logging.
+/// If allowed, the `blocked_by` field is None.
+pub struct RateLimitResult {
+    /// If Some, the adjustment is blocked. The string describes which limit blocked it.
+    pub blocked_by: Option<String>,
+    /// Reason text for history record (only set when blocked).
+    pub reason: Option<String>,
+    /// Metadata for history record (only set when blocked).
+    pub metadata: Option<serde_json::Value>,
+}
+
+impl RateLimitResult {
+    /// Create an allowed result (not blocked).
+    fn allowed() -> Self {
+        Self {
+            blocked_by: None,
+            reason: None,
+            metadata: None,
+        }
+    }
+
+    /// Create a blocked result with the specified reason and metadata.
+    fn blocked(blocked_by: &str, reason: &str, metadata: serde_json::Value) -> Self {
+        Self {
+            blocked_by: Some(blocked_by.to_string()),
+            reason: Some(reason.to_string()),
+            metadata: Some(metadata),
+        }
+    }
+
+    /// Check if the adjustment is blocked.
+    fn is_blocked(&self) -> bool {
+        self.blocked_by.is_some()
+    }
+}
+
+/// Check rate limiting constraints before applying an adjustment.
+///
+/// Checks two rate limits in order (FR-014 specifies cooldown is checked first):
+/// 1. Cooldown period: minimum seconds between adjustments (walrus.cooldown_sec)
+/// 2. Hourly limit: maximum adjustments per rolling one-hour window (walrus.max_changes_per_hour)
+///
+/// Special cases:
+/// - If cooldown_sec = 0, cooldown check is skipped entirely
+/// - If max_changes_per_hour = 0, all automatic adjustments are blocked
+///
+/// Returns:
+/// - RateLimitResult with blocked_by=None if adjustment is allowed
+/// - RateLimitResult with blocked_by=Some("cooldown"|"hourly_limit") if blocked
+fn check_rate_limit() -> RateLimitResult {
+    let now = now_unix();
+    let cooldown_sec = WALRUS_COOLDOWN_SEC.get();
+    let max_changes_per_hour = WALRUS_MAX_CHANGES_PER_HOUR.get();
+    let state = shmem::read_state();
+
+    // Edge case: max_changes_per_hour = 0 blocks all automatic adjustments
+    if max_changes_per_hour == 0 {
+        return RateLimitResult::blocked(
+            "hourly_limit",
+            "automatic adjustments disabled (max_changes_per_hour = 0)",
+            json!({
+                "blocked_by": "hourly_limit",
+                "max_changes_per_hour": 0,
+                "changes_this_hour": state.changes_this_hour
+            }),
+        );
+    }
+
+    // Check 1: Cooldown period (skip if cooldown_sec = 0)
+    if cooldown_sec > 0 && state.last_adjustment_time > 0 {
+        let cooldown_end = state.last_adjustment_time.saturating_add(cooldown_sec as i64);
+        // Use strict inequality: blocked if now < cooldown_end (not <=)
+        // This means adjustment is allowed when now >= cooldown_end
+        if now < cooldown_end {
+            let remaining = cooldown_end.saturating_sub(now);
+            return RateLimitResult::blocked(
+                "cooldown",
+                "cooldown active",
+                json!({
+                    "blocked_by": "cooldown",
+                    "cooldown_sec": cooldown_sec,
+                    "cooldown_remaining_sec": remaining,
+                    "last_adjustment_time": state.last_adjustment_time
+                }),
+            );
+        }
+    }
+
+    // Check 2: Hourly limit (only after cooldown passes)
+    // First, check if the current hour window has expired
+    let hour_expired = if state.hour_window_start > 0 {
+        now >= state.hour_window_start.saturating_add(3600)
+    } else {
+        // No previous window, will start fresh
+        true
+    };
+
+    // If window hasn't expired, check if we're at the limit
+    if !hour_expired && state.changes_this_hour >= max_changes_per_hour {
+        return RateLimitResult::blocked(
+            "hourly_limit",
+            "hourly limit reached",
+            json!({
+                "blocked_by": "hourly_limit",
+                "max_changes_per_hour": max_changes_per_hour,
+                "changes_this_hour": state.changes_this_hour,
+                "hour_window_start": state.hour_window_start
+            }),
+        );
+    }
+
+    // Adjustment is allowed
+    RateLimitResult::allowed()
+}
+
+/// Update rate limiting state after a successful adjustment.
+///
+/// Called after an adjustment is applied (or would be applied in dry-run mode).
+/// Updates changes_this_hour and hour_window_start in shared memory.
+fn update_rate_limit_state_after_adjustment() {
+    let now = now_unix();
+    shmem::update_state(|state| {
+        // Check if hour window has expired
+        let hour_expired = if state.hour_window_start > 0 {
+            now >= state.hour_window_start.saturating_add(3600)
+        } else {
+            true
+        };
+
+        if hour_expired {
+            // Start new window
+            state.changes_this_hour = 1;
+            state.hour_window_start = now;
+        } else {
+            // Increment count in current window
+            state.changes_this_hour += 1;
+        }
+    });
 }
 
 /// Process checkpoint statistics and trigger resize if needed.
@@ -152,6 +295,67 @@ fn process_checkpoint_stats(first_iteration: &mut bool) {
 
         let timeout_secs = checkpoint_timeout().as_secs();
 
+        // RATE LIMIT CHECK: Must occur BEFORE dry-run check per FR-014
+        // This ensures rate-limited adjustments are logged correctly in both modes.
+        let rate_limit_result = check_rate_limit();
+        if rate_limit_result.is_blocked() {
+            let blocked_by = rate_limit_result.blocked_by.as_deref().unwrap_or("unknown");
+            let reason = rate_limit_result.reason.as_deref().unwrap_or("rate limit blocked");
+            let remaining = if blocked_by == "cooldown" {
+                rate_limit_result
+                    .metadata
+                    .as_ref()
+                    .and_then(|m| m.get("cooldown_remaining_sec"))
+                    .and_then(|v| v.as_i64())
+                    .unwrap_or(0)
+            } else {
+                0
+            };
+
+            // Log rate limit message
+            if blocked_by == "cooldown" {
+                pgrx::log!(
+                    "pg_walrus: adjustment blocked - cooldown active ({} seconds remaining)",
+                    remaining
+                );
+            } else {
+                let changes = rate_limit_result
+                    .metadata
+                    .as_ref()
+                    .and_then(|m| m.get("changes_this_hour"))
+                    .and_then(|v| v.as_i64())
+                    .unwrap_or(0);
+                let max_changes = rate_limit_result
+                    .metadata
+                    .as_ref()
+                    .and_then(|m| m.get("max_changes_per_hour"))
+                    .and_then(|v| v.as_i64())
+                    .unwrap_or(0);
+                pgrx::log!(
+                    "pg_walrus: adjustment blocked - hourly limit reached ({} of {})",
+                    changes,
+                    max_changes
+                );
+            }
+
+            // Record skipped adjustment in history
+            if let Err(e) = BackgroundWorker::transaction(|| {
+                history::insert_history_record(
+                    "skipped",
+                    current_size,
+                    new_size,
+                    current_requested,
+                    timeout_secs as i32,
+                    Some(reason),
+                    rate_limit_result.metadata.clone(),
+                )
+            }) {
+                pgrx::warning!("pg_walrus: failed to log skipped history: {}", e);
+            }
+
+            return;
+        }
+
         // DRY-RUN CHECK: If dry-run enabled, log what would happen and insert history,
         // but skip ALTER SYSTEM and SIGHUP. Mode change takes effect on next iteration.
         if WALRUS_DRY_RUN.get() {
@@ -199,6 +403,9 @@ fn process_checkpoint_stats(first_iteration: &mut bool) {
                 pgrx::warning!("pg_walrus: failed to log dry-run history: {}", e);
             }
 
+            // Update rate limiting state for dry-run (counts against limits per FR-014)
+            update_rate_limit_state_after_adjustment();
+
             // Skip ALTER SYSTEM and SIGHUP in dry-run mode
             return;
         }
@@ -229,6 +436,9 @@ fn process_checkpoint_stats(first_iteration: &mut bool) {
             state.total_adjustments += 1;
             state.last_adjustment_time = now_unix();
         });
+
+        // Update rate limiting state
+        update_rate_limit_state_after_adjustment();
 
         // Log to history table (FR-002, FR-003, FR-011)
         let (action, reason, metadata) = if is_capped {
@@ -320,6 +530,68 @@ fn process_checkpoint_stats(first_iteration: &mut bool) {
 
         let timeout_secs = checkpoint_timeout().as_secs();
 
+        // RATE LIMIT CHECK: Must occur BEFORE dry-run check per FR-014
+        // This ensures rate-limited shrink adjustments are logged correctly in both modes.
+        let rate_limit_result = check_rate_limit();
+        if rate_limit_result.is_blocked() {
+            let blocked_by = rate_limit_result.blocked_by.as_deref().unwrap_or("unknown");
+            let reason = rate_limit_result.reason.as_deref().unwrap_or("rate limit blocked");
+            let remaining = if blocked_by == "cooldown" {
+                rate_limit_result
+                    .metadata
+                    .as_ref()
+                    .and_then(|m| m.get("cooldown_remaining_sec"))
+                    .and_then(|v| v.as_i64())
+                    .unwrap_or(0)
+            } else {
+                0
+            };
+
+            // Log rate limit message
+            if blocked_by == "cooldown" {
+                pgrx::log!(
+                    "pg_walrus: shrink blocked - cooldown active ({} seconds remaining)",
+                    remaining
+                );
+            } else {
+                let changes = rate_limit_result
+                    .metadata
+                    .as_ref()
+                    .and_then(|m| m.get("changes_this_hour"))
+                    .and_then(|v| v.as_i64())
+                    .unwrap_or(0);
+                let max_changes = rate_limit_result
+                    .metadata
+                    .as_ref()
+                    .and_then(|m| m.get("max_changes_per_hour"))
+                    .and_then(|v| v.as_i64())
+                    .unwrap_or(0);
+                pgrx::log!(
+                    "pg_walrus: shrink blocked - hourly limit reached ({} of {})",
+                    changes,
+                    max_changes
+                );
+            }
+
+            // Record skipped shrink in history
+            if let Err(e) = BackgroundWorker::transaction(|| {
+                history::insert_history_record(
+                    "skipped",
+                    current_size,
+                    new_size,
+                    current_requested,
+                    timeout_secs as i32,
+                    Some(reason),
+                    rate_limit_result.metadata.clone(),
+                )
+            }) {
+                pgrx::warning!("pg_walrus: failed to log skipped shrink history: {}", e);
+            }
+
+            // Do NOT reset quiet_intervals when rate-limited - we want to try again next cycle
+            return;
+        }
+
         // DRY-RUN CHECK: If dry-run enabled, log what would happen and insert history,
         // but skip ALTER SYSTEM and SIGHUP. Mode change takes effect on next iteration.
         if WALRUS_DRY_RUN.get() {
@@ -359,6 +631,9 @@ fn process_checkpoint_stats(first_iteration: &mut bool) {
                 state.quiet_intervals = 0;
             });
 
+            // Update rate limiting state for dry-run (counts against limits per FR-014)
+            update_rate_limit_state_after_adjustment();
+
             // Skip ALTER SYSTEM and SIGHUP in dry-run mode
             return;
         }
@@ -385,6 +660,9 @@ fn process_checkpoint_stats(first_iteration: &mut bool) {
             state.last_adjustment_time = now_unix();
             state.quiet_intervals = 0; // Reset after successful shrink
         });
+
+        // Update rate limiting state
+        update_rate_limit_state_after_adjustment();
 
         // Log to history table (FR-004, FR-011)
         let metadata = json!({

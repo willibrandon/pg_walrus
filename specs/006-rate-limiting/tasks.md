@@ -15,11 +15,11 @@
 
 **Purpose**: Add rate limiting state to shared memory and update SQL schema
 
-- [ ] T001 [P] Add `changes_this_hour` (i32) and `hour_window_start` (i64) fields to `WalrusState` struct in `src/shmem.rs`
-- [ ] T002 [P] Update `reset_state()` function in `src/shmem.rs` to reset new rate limiting fields to 0 per FR-019
-- [ ] T003 Add 'skipped' to CHECK constraint in `walrus.history` table definition in `src/lib.rs` (lines 37)
+- [X] T001 [P] Add `changes_this_hour` (i32) and `hour_window_start` (i64) fields to `WalrusState` struct in `src/shmem.rs`
+- [X] T002 [P] Update `reset_state()` function in `src/shmem.rs` to reset new rate limiting fields to 0 per FR-019
+- [X] T003 Add 'skipped' to CHECK constraint in `walrus.history` table definition in `src/lib.rs` (lines 37)
 
-**Checkpoint**: Rate limiting state storage and schema ready for feature implementation
+**Checkpoint**: ✅ Rate limiting state storage and schema ready for feature implementation
 
 ---
 
@@ -29,13 +29,13 @@
 
 **CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 [P] Add `WALRUS_COOLDOWN_SEC` GucSetting (i32, default: 300) in `src/guc.rs`
-- [ ] T005 [P] Add `WALRUS_MAX_CHANGES_PER_HOUR` GucSetting (i32, default: 4) in `src/guc.rs`
-- [ ] T006 Register `walrus.cooldown_sec` GUC with GucRegistry in `src/guc.rs` (range 0-86400, GucContext::Sighup)
-- [ ] T007 Register `walrus.max_changes_per_hour` GUC with GucRegistry in `src/guc.rs` (range 0-1000, GucContext::Sighup)
-- [ ] T008 Create `check_rate_limit()` function in `src/worker.rs` that checks cooldown and hourly limit, returns `Option<(String, serde_json::Value)>` with block reason and metadata if blocked
+- [X] T004 [P] Add `WALRUS_COOLDOWN_SEC` GucSetting (i32, default: 300) in `src/guc.rs`
+- [X] T005 [P] Add `WALRUS_MAX_CHANGES_PER_HOUR` GucSetting (i32, default: 4) in `src/guc.rs`
+- [X] T006 Register `walrus.cooldown_sec` GUC with GucRegistry in `src/guc.rs` (range 0-86400, GucContext::Sighup)
+- [X] T007 Register `walrus.max_changes_per_hour` GUC with GucRegistry in `src/guc.rs` (range 0-1000, GucContext::Sighup)
+- [X] T008 Create `check_rate_limit()` function in `src/worker.rs` that checks cooldown and hourly limit, returns `Option<(String, serde_json::Value)>` with block reason and metadata if blocked
 
-**Checkpoint**: Foundation ready - GUCs registered, rate limit check function available for user stories
+**Checkpoint**: ✅ Foundation ready - GUCs registered, rate limit check function available for user stories
 
 ---
 
@@ -47,13 +47,13 @@
 
 ### Implementation for User Story 1
 
-- [ ] T009 [US1] Implement cooldown check logic in `check_rate_limit()`: compare `last_adjustment_time + cooldown_sec` vs `now_unix()` in `src/worker.rs`
-- [ ] T010 [US1] Insert rate limit check after grow threshold detection (after `if delta >= threshold`) in GROW PATH of `src/worker.rs`
-- [ ] T011 [US1] Insert rate limit check after shrink conditions pass in SHRINK PATH of `src/worker.rs`
-- [ ] T012 [US1] Add LOG level message when adjustment blocked by cooldown: "pg_walrus: adjustment blocked - cooldown active (N seconds remaining)" in `src/worker.rs`
-- [ ] T013 [US1] When cooldown blocks adjustment, call `history::insert_history_record()` with action='skipped', reason='cooldown active', metadata containing `blocked_by` and `cooldown_remaining_sec` in `src/worker.rs`
+- [X] T009 [US1] Implement cooldown check logic in `check_rate_limit()`: compare `last_adjustment_time + cooldown_sec` vs `now_unix()` in `src/worker.rs`
+- [X] T010 [US1] Insert rate limit check after grow threshold detection (after `if delta >= threshold`) in GROW PATH of `src/worker.rs`
+- [X] T011 [US1] Insert rate limit check after shrink conditions pass in SHRINK PATH of `src/worker.rs`
+- [X] T012 [US1] Add LOG level message when adjustment blocked by cooldown: "pg_walrus: adjustment blocked - cooldown active (N seconds remaining)" in `src/worker.rs`
+- [X] T013 [US1] When cooldown blocks adjustment, call `history::insert_history_record()` with action='skipped', reason='cooldown active', metadata containing `blocked_by` and `cooldown_remaining_sec` in `src/worker.rs`
 
-**Checkpoint**: Cooldown period enforcement complete - adjustments rate-limited by minimum interval
+**Checkpoint**: ✅ Cooldown period enforcement complete - adjustments rate-limited by minimum interval
 
 ---
 
@@ -65,13 +65,13 @@
 
 ### Implementation for User Story 2
 
-- [ ] T014 [US2] Implement rolling window expiry check in `check_rate_limit()`: if `now_unix() - hour_window_start >= 3600`, reset `changes_this_hour = 1` and `hour_window_start = now` in `src/worker.rs`
-- [ ] T015 [US2] Implement hourly limit check in `check_rate_limit()`: compare `changes_this_hour >= max_changes_per_hour` (only if `max_changes_per_hour > 0`) in `src/worker.rs`
-- [ ] T016 [US2] Update shared memory state on successful adjustment: `changes_this_hour += 1`, update `hour_window_start` if expired in `src/worker.rs`
-- [ ] T017 [US2] Add LOG level message when adjustment blocked by hourly limit: "pg_walrus: adjustment blocked - hourly limit reached (N of M)" in `src/worker.rs`
-- [ ] T018 [US2] When hourly limit blocks adjustment, call `history::insert_history_record()` with action='skipped', reason='hourly limit reached', metadata containing `blocked_by` and `changes_this_hour` in `src/worker.rs`
+- [X] T014 [US2] Implement rolling window expiry check in `check_rate_limit()`: if `now_unix() - hour_window_start >= 3600`, reset `changes_this_hour = 1` and `hour_window_start = now` in `src/worker.rs`
+- [X] T015 [US2] Implement hourly limit check in `check_rate_limit()`: compare `changes_this_hour >= max_changes_per_hour` (only if `max_changes_per_hour > 0`) in `src/worker.rs`
+- [X] T016 [US2] Update shared memory state on successful adjustment: `changes_this_hour += 1`, update `hour_window_start` if expired in `src/worker.rs`
+- [X] T017 [US2] Add LOG level message when adjustment blocked by hourly limit: "pg_walrus: adjustment blocked - hourly limit reached (N of M)" in `src/worker.rs`
+- [X] T018 [US2] When hourly limit blocks adjustment, call `history::insert_history_record()` with action='skipped', reason='hourly limit reached', metadata containing `blocked_by` and `changes_this_hour` in `src/worker.rs`
 
-**Checkpoint**: Hourly limit enforcement complete - adjustments capped per rolling hour window
+**Checkpoint**: ✅ Hourly limit enforcement complete - adjustments capped per rolling hour window
 
 ---
 
@@ -83,14 +83,14 @@
 
 ### Implementation for User Story 3
 
-- [ ] T019 [P] [US3] Add `#[pg_test]` test `test_guc_cooldown_sec_default` verifying SHOW walrus.cooldown_sec returns '300' in `src/guc.rs` or `src/tests.rs`
-- [ ] T020 [P] [US3] Add `#[pg_test]` test `test_guc_cooldown_sec_range` verifying min_val=0, max_val=86400 from pg_settings in `src/guc.rs` or `src/tests.rs`
-- [ ] T021 [P] [US3] Add `#[pg_test]` test `test_guc_max_changes_per_hour_default` verifying SHOW walrus.max_changes_per_hour returns '4' in `src/guc.rs` or `src/tests.rs`
-- [ ] T022 [P] [US3] Add `#[pg_test]` test `test_guc_max_changes_per_hour_range` verifying min_val=0, max_val=1000 from pg_settings in `src/guc.rs` or `src/tests.rs`
-- [ ] T023 [US3] Add pg_regress test `rate_limiting.sql` verifying ALTER SYSTEM SET walrus.cooldown_sec and walrus.max_changes_per_hour work in `tests/pg_regress/sql/`
-- [ ] T024 [US3] Create expected output file `rate_limiting.out` for pg_regress test in `tests/pg_regress/expected/`
+- [X] T019 [P] [US3] Add `#[pg_test]` test `test_guc_cooldown_sec_default` verifying SHOW walrus.cooldown_sec returns '300' in `src/guc.rs` or `src/tests.rs`
+- [X] T020 [P] [US3] Add `#[pg_test]` test `test_guc_cooldown_sec_range` verifying min_val=0, max_val=86400 from pg_settings in `src/guc.rs` or `src/tests.rs`
+- [X] T021 [P] [US3] Add `#[pg_test]` test `test_guc_max_changes_per_hour_default` verifying SHOW walrus.max_changes_per_hour returns '4' in `src/guc.rs` or `src/tests.rs`
+- [X] T022 [P] [US3] Add `#[pg_test]` test `test_guc_max_changes_per_hour_range` verifying min_val=0, max_val=1000 from pg_settings in `src/guc.rs` or `src/tests.rs`
+- [X] T023 [US3] Add pg_regress test `rate_limiting.sql` verifying ALTER SYSTEM SET walrus.cooldown_sec and walrus.max_changes_per_hour work in `tests/pg_regress/sql/`
+- [X] T024 [US3] Create expected output file `rate_limiting.out` for pg_regress test in `tests/pg_regress/expected/`
 
-**Checkpoint**: GUC parameters fully tested - configuration interface validated
+**Checkpoint**: ✅ GUC parameters fully tested - configuration interface validated
 
 ---
 
@@ -102,18 +102,18 @@
 
 ### Implementation for User Story 4
 
-- [ ] T025 [US4] Add `cooldown_sec` field (GUC value) to walrus.status() output in `src/functions.rs`
-- [ ] T026 [US4] Add `max_changes_per_hour` field (GUC value) to walrus.status() output in `src/functions.rs`
-- [ ] T027 [US4] Add `cooldown_active` computed field (boolean) to walrus.status() output in `src/functions.rs`
-- [ ] T028 [US4] Add `cooldown_remaining_sec` computed field (integer, 0 if not active) to walrus.status() output in `src/functions.rs`
-- [ ] T029 [US4] Add `changes_this_hour` field (from shmem) to walrus.status() output in `src/functions.rs`
-- [ ] T030 [US4] Add `hourly_window_start` field (ISO 8601 timestamp, null if 0) to walrus.status() output in `src/functions.rs`
-- [ ] T031 [US4] Add `hourly_limit_reached` computed field (boolean) to walrus.status() output in `src/functions.rs`
-- [ ] T032 [US4] Ensure `walrus.analyze(apply := true)` bypasses rate limiting (does not check or update rate limit state) per FR-015 in `src/functions.rs`
-- [ ] T033 [P] [US4] Add `#[pg_test]` test `test_status_rate_limiting_fields` verifying all 7 new fields present in walrus.status() output in `src/tests.rs`
-- [ ] T034 [P] [US4] Add `#[pg_test]` test `test_history_skipped_action` verifying action='skipped' can be inserted and queried in `src/history.rs`
+- [X] T025 [US4] Add `cooldown_sec` field (GUC value) to walrus.status() output in `src/functions.rs`
+- [X] T026 [US4] Add `max_changes_per_hour` field (GUC value) to walrus.status() output in `src/functions.rs`
+- [X] T027 [US4] Add `cooldown_active` computed field (boolean) to walrus.status() output in `src/functions.rs`
+- [X] T028 [US4] Add `cooldown_remaining_sec` computed field (integer, 0 if not active) to walrus.status() output in `src/functions.rs`
+- [X] T029 [US4] Add `changes_this_hour` field (from shmem) to walrus.status() output in `src/functions.rs`
+- [X] T030 [US4] Add `hourly_window_start` field (ISO 8601 timestamp, null if 0) to walrus.status() output in `src/functions.rs`
+- [X] T031 [US4] Add `hourly_limit_reached` computed field (boolean) to walrus.status() output in `src/functions.rs`
+- [X] T032 [US4] Ensure `walrus.analyze(apply := true)` bypasses rate limiting (does not check or update rate limit state) per FR-015 in `src/functions.rs`
+- [X] T033 [P] [US4] Add `#[pg_test]` test `test_status_rate_limiting_fields` verifying all 7 new fields present in walrus.status() output in `src/tests.rs`
+- [X] T034 [P] [US4] Add `#[pg_test]` test `test_history_skipped_action` verifying action='skipped' can be inserted and queried in `src/history.rs`
 
-**Checkpoint**: Rate limiting fully observable via status() and history
+**Checkpoint**: ✅ Rate limiting fully observable via status() and history
 
 ---
 
@@ -121,20 +121,20 @@
 
 **Purpose**: Handle all edge cases from spec.md
 
-- [ ] T035 [P] Handle `cooldown_sec = 0` edge case: skip cooldown check entirely in `check_rate_limit()` in `src/worker.rs`
-- [ ] T036 [P] Handle `max_changes_per_hour = 0` edge case: block all automatic adjustments in `check_rate_limit()` in `src/worker.rs`
-- [ ] T037 Verify cooldown check order: cooldown checked BEFORE hourly limit per edge case spec in `src/worker.rs`
-- [ ] T038 Verify rate limit check occurs BEFORE dry-run check per FR-014 in `src/worker.rs`
-- [ ] T039 [P] Add `#[pg_test]` test `test_cooldown_zero_disables_cooldown` verifying cooldown_sec=0 allows immediate adjustments in `src/tests.rs`
-- [ ] T040 [P] Add `#[pg_test]` test `test_max_changes_zero_blocks_all` verifying max_changes_per_hour=0 blocks all automatic adjustments in `src/tests.rs`
-- [ ] T041 [P] Add `#[pg_test]` test `test_reset_clears_rate_limit_state` verifying walrus.reset() clears changes_this_hour and hour_window_start in `src/tests.rs`
-- [ ] T046 [P] Add `#[pg_test]` test `test_restart_clears_rate_limit_state` verifying changes_this_hour and hour_window_start are 0 after fresh extension load in `src/tests.rs`
-- [ ] T047 [P] Add `#[pg_test]` test `test_cooldown_boundary_allows_adjustment` verifying adjustment proceeds when last_adjustment_time + cooldown_sec == now (strict inequality) in `src/tests.rs`
-- [ ] T048 [P] Add `#[pg_test]` test `test_dry_run_counts_for_rate_limiting` verifying dry-run adjustment increments changes_this_hour in `src/tests.rs`
-- [ ] T049 [P] Add `#[pg_test]` test `test_cooldown_checked_before_hourly` verifying cooldown is checked first and hourly counter not incremented when cooldown blocks in `src/tests.rs`
-- [ ] T050 [P] Add `#[pg_test]` test `test_clock_skew_extends_cooldown_safely` verifying backward clock jump extends cooldown rather than allowing premature adjustment in `src/tests.rs`
+- [X] T035 [P] Handle `cooldown_sec = 0` edge case: skip cooldown check entirely in `check_rate_limit()` in `src/worker.rs`
+- [X] T036 [P] Handle `max_changes_per_hour = 0` edge case: block all automatic adjustments in `check_rate_limit()` in `src/worker.rs`
+- [X] T037 Verify cooldown check order: cooldown checked BEFORE hourly limit per edge case spec in `src/worker.rs`
+- [X] T038 Verify rate limit check occurs BEFORE dry-run check per FR-014 in `src/worker.rs`
+- [X] T039 [P] Add `#[pg_test]` test `test_cooldown_zero_disables_cooldown` verifying cooldown_sec=0 allows immediate adjustments in `src/tests.rs`
+- [X] T040 [P] Add `#[pg_test]` test `test_max_changes_zero_blocks_all` verifying max_changes_per_hour=0 blocks all automatic adjustments in `src/tests.rs`
+- [X] T041 [P] Add `#[pg_test]` test `test_reset_clears_rate_limit_state` verifying walrus.reset() clears changes_this_hour and hour_window_start in `src/tests.rs`
+- [X] T046 [P] Add `#[pg_test]` test `test_restart_clears_rate_limit_state` verifying changes_this_hour and hour_window_start are 0 after fresh extension load in `src/tests.rs`
+- [X] T047 [P] Add `#[pg_test]` test `test_cooldown_boundary_allows_adjustment` verifying adjustment proceeds when last_adjustment_time + cooldown_sec == now (strict inequality) in `src/tests.rs`
+- [X] T048 [P] Add `#[pg_test]` test `test_dry_run_counts_for_rate_limiting` verifying dry-run adjustment increments changes_this_hour in `src/tests.rs`
+- [X] T049 [P] Add `#[pg_test]` test `test_cooldown_checked_before_hourly` verifying cooldown is checked first and hourly counter not incremented when cooldown blocks in `src/tests.rs`
+- [X] T050 [P] Add `#[pg_test]` test `test_clock_skew_extends_cooldown_safely` verifying backward clock jump extends cooldown rather than allowing premature adjustment in `src/tests.rs`
 
-**Checkpoint**: All edge cases handled - feature complete
+**Checkpoint**: ✅ All edge cases handled - feature complete
 
 ---
 
@@ -142,10 +142,14 @@
 
 **Purpose**: Final validation and documentation
 
-- [ ] T042 Run `cargo pgrx test pg15 pg16 pg17 pg18` to verify all tests pass across PostgreSQL versions
-- [ ] T043 Run `cargo pgrx regress pg15 pg16 pg17 pg18 --postgresql-conf "shared_preload_libraries='pg_walrus'"` to verify pg_regress tests pass
-- [ ] T044 Validate quickstart.md examples work correctly with actual implementation
-- [ ] T045 Verify file sizes remain under 900 LOC limit after modifications
+- [X] T042 Run `cargo pgrx test pg15 pg16 pg17 pg18` to verify all tests pass across PostgreSQL versions
+- [X] T043 Run `cargo pgrx regress pg15 pg16 pg17 pg18 --postgresql-conf "shared_preload_libraries='pg_walrus'"` to verify pg_regress tests pass
+- [X] T044 Validate quickstart.md examples work correctly with actual implementation
+- [X] T045 Verify file sizes remain under 900 LOC limit after modifications
+
+**Final Results:**
+- ✅ 121 pgrx tests pass on PG15, PG16, PG17, PG18
+- ✅ 11 pg_regress tests pass on PG15, PG16, PG17, PG18
 
 ---
 

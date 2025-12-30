@@ -78,6 +78,22 @@ pub static WALRUS_HISTORY_RETENTION_DAYS: GucSetting<i32> = GucSetting::<i32>::n
 pub static WALRUS_DRY_RUN: GucSetting<bool> = GucSetting::<bool>::new(false);
 
 // =========================================================================
+// Rate Limiting GUC Parameters
+// =========================================================================
+
+/// Minimum seconds between automatic max_wal_size adjustments (cooldown period).
+/// Prevents rapid successive changes during volatile workloads.
+/// Set to 0 to disable cooldown (only hourly limit applies).
+/// Default: 300 (5 minutes), Min: 0, Max: 86400 (24 hours)
+pub static WALRUS_COOLDOWN_SEC: GucSetting<i32> = GucSetting::<i32>::new(300);
+
+/// Maximum number of automatic adjustments allowed per rolling one-hour window.
+/// Provides a secondary safety limit beyond the cooldown period.
+/// Set to 0 to block all automatic adjustments (emergency stop).
+/// Default: 4, Min: 0, Max: 1000
+pub static WALRUS_MAX_CHANGES_PER_HOUR: GucSetting<i32> = GucSetting::<i32>::new(4);
+
+// =========================================================================
 // Database GUC Parameter (Postmaster context - requires restart)
 // =========================================================================
 
@@ -198,6 +214,32 @@ pub fn register_gucs() {
         c"Enable dry-run mode (log decisions without applying).",
         c"When enabled, pg_walrus logs sizing decisions but does not execute ALTER SYSTEM.",
         &WALRUS_DRY_RUN,
+        GucContext::Sighup,
+        GucFlags::default(),
+    );
+
+    // =========================================================================
+    // Rate Limiting GUCs
+    // =========================================================================
+
+    GucRegistry::define_int_guc(
+        c"walrus.cooldown_sec",
+        c"Minimum seconds between automatic max_wal_size adjustments.",
+        c"Prevents rapid successive changes. Set to 0 to disable cooldown.",
+        &WALRUS_COOLDOWN_SEC,
+        0,
+        86400,
+        GucContext::Sighup,
+        GucFlags::default(),
+    );
+
+    GucRegistry::define_int_guc(
+        c"walrus.max_changes_per_hour",
+        c"Maximum automatic adjustments per rolling one-hour window.",
+        c"Set to 0 to block all automatic adjustments (emergency stop).",
+        &WALRUS_MAX_CHANGES_PER_HOUR,
+        0,
+        1000,
         GucContext::Sighup,
         GucFlags::default(),
     );

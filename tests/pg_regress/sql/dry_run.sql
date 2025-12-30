@@ -16,11 +16,14 @@ SELECT context FROM pg_settings WHERE name = 'walrus.dry_run';
 SELECT vartype FROM pg_settings WHERE name = 'walrus.dry_run';
 
 -- Test 5: walrus.history table accepts 'dry_run' action
--- First check the CHECK constraint allows dry_run
-SELECT constraint_name, check_clause
+-- First check the CHECK constraint allows dry_run, skipped, and other actions
+-- (Use LIKE pattern to avoid version-specific formatting differences in check_clause)
+SELECT constraint_name,
+       check_clause LIKE '%dry_run%' AS has_dry_run,
+       check_clause LIKE '%skipped%' AS has_skipped,
+       check_clause LIKE '%increase%' AS has_increase
 FROM information_schema.check_constraints
-WHERE constraint_name LIKE '%walrus_history%action%'
-   OR (constraint_schema = 'walrus' AND constraint_name LIKE '%action%');
+WHERE check_clause LIKE '%action%ANY%';
 
 -- Test 6: Insert a dry_run record manually to verify schema
 INSERT INTO walrus.history
@@ -70,8 +73,9 @@ ORDER BY id DESC LIMIT 1;
 -- Cleanup test records
 DELETE FROM walrus.history WHERE action = 'dry_run';
 
--- Test 9: Count of walrus GUCs with sighup context should be 9
--- (enable, max, threshold, shrink_enable, shrink_factor, shrink_intervals, min_size, history_retention_days, dry_run)
+-- Test 9: Count of walrus GUCs with sighup context should be 11
+-- (enable, max, threshold, shrink_enable, shrink_factor, shrink_intervals, min_size,
+--  history_retention_days, dry_run, cooldown_sec, max_changes_per_hour)
 SELECT COUNT(*) AS sighup_guc_count
 FROM pg_settings
 WHERE name LIKE 'walrus.%' AND context = 'sighup';

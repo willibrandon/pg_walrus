@@ -2,6 +2,20 @@
 -- This verifies that pg_walrus's internal ALTER SYSTEM mechanism works correctly
 -- (pg_test cannot test this because ALTER SYSTEM cannot run inside a transaction block)
 
+-- Cleanup any stale walrus settings from previous test runs
+-- (ALTER SYSTEM persists in postgresql.auto.conf across database drops)
+ALTER SYSTEM RESET walrus.enable;
+ALTER SYSTEM RESET walrus.max;
+ALTER SYSTEM RESET walrus.threshold;
+ALTER SYSTEM RESET walrus.shrink_enable;
+ALTER SYSTEM RESET walrus.shrink_factor;
+ALTER SYSTEM RESET walrus.shrink_intervals;
+ALTER SYSTEM RESET walrus.min_size;
+ALTER SYSTEM RESET walrus.history_retention_days;
+ALTER SYSTEM RESET walrus.dry_run;
+ALTER SYSTEM RESET walrus.cooldown_sec;
+ALTER SYSTEM RESET walrus.max_changes_per_hour;
+
 -- Record current max_wal_size
 SELECT setting AS original_max_wal_size FROM pg_settings WHERE name = 'max_wal_size' \gset
 
