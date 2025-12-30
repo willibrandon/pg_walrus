@@ -1,0 +1,26 @@
+-- Test extension metadata and GUC visibility
+-- Note: GUCs are visible because pg_walrus is loaded via shared_preload_libraries
+-- All GUC parameters should be visible in pg_settings
+SELECT name, setting, unit, short_desc
+FROM pg_settings
+WHERE name LIKE 'walrus.%'
+ORDER BY name;
+       name       | setting | unit |                           short_desc                           
+------------------+---------+------+----------------------------------------------------------------
+ walrus.enable    | on      |      | Enable automatic resizing of max_wal_size parameter.
+ walrus.max       | 4096    | MB   | Maximum size for max_wal_size that pg_walrus will not exceed.
+ walrus.threshold | 2       |      | Forced checkpoints per timeout before increasing max_wal_size.
+(3 rows)
+
+-- Check GUC context is SIGHUP (allows runtime changes via ALTER SYSTEM)
+SELECT name, context
+FROM pg_settings
+WHERE name LIKE 'walrus.%'
+ORDER BY name;
+       name       | context 
+------------------+---------
+ walrus.enable    | sighup
+ walrus.max       | sighup
+ walrus.threshold | sighup
+(3 rows)
+

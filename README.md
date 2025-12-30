@@ -75,8 +75,11 @@ cd pg_walrus
 # Run interactively with psql
 cargo pgrx run pg17
 
-# Run tests
+# Run integration tests
 cargo pgrx test pg17
+
+# Run SQL regression tests (requires --postgresql-conf for background worker)
+cargo pgrx regress pg17 --postgresql-conf "shared_preload_libraries='pg_walrus'"
 
 # Create installation package
 cargo pgrx package
@@ -153,13 +156,35 @@ SELECT pg_reload_conf();
 
 Requires PostgreSQL 15+ due to `pgstat_fetch_stat_checkpointer()` API.
 
+## Development
+
+### Running Tests
+
+pg_walrus uses pgrx-managed PostgreSQL instances for development and testing. These are separate from any system PostgreSQL installations.
+
+```bash
+# Integration tests (automatically configures shared_preload_libraries via pg_test module)
+cargo pgrx test pg17
+
+# SQL regression tests (requires explicit --postgresql-conf)
+cargo pgrx regress pg17 --postgresql-conf "shared_preload_libraries='pg_walrus'"
+
+# Test all supported versions
+for v in pg15 pg16 pg17 pg18; do
+    cargo pgrx test $v || exit 1
+    cargo pgrx regress $v --postgresql-conf "shared_preload_libraries='pg_walrus'" || exit 1
+done
+```
+
+**Note**: `cargo pgrx test` reads `shared_preload_libraries` from the `pg_test::postgresql_conf_options()` function in `src/lib.rs`. `cargo pgrx regress` does not—you must pass `--postgresql-conf` explicitly for background worker extensions.
+
 ## Project Status
 
 | Component | Status |
 |-----------|--------|
 | Original C extension (pg_walsizer) | Complete |
 | Rust conversion design | Complete |
-| Rust implementation | In Progress |
+| Rust implementation | Complete |
 | Enhanced features | Planned |
 
 ## Documentation

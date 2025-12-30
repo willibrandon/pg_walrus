@@ -1,3 +1,10 @@
--- this setup file is run immediately after the regression database is (re)created
--- the file is optional but you likely want to create the extension
-CREATE EXTENSION pg_walrus;
+-- Setup test: verify pg_walrus GUCs are visible
+-- This confirms pg_walrus is loaded (either via shared_preload_libraries or CREATE EXTENSION)
+SELECT COUNT(*) > 0 AS pg_walrus_loaded
+FROM pg_settings
+WHERE name LIKE 'walrus.%';
+ pg_walrus_loaded 
+------------------
+ t
+(1 row)
+

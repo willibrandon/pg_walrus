@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 pg_walrus is a Rust rewrite (using pgrx) of pg_walsizer - a PostgreSQL extension that automatically monitors and adjusts `max_wal_size` to prevent performance-degrading forced checkpoints. The name comes from WAL + Rust = Walrus.
 
-**Current state**: The repository contains the original C implementation (pg_walsizer) and design documents for the Rust conversion. The Rust implementation has not yet been created.
+**Current state**: The Rust implementation is complete with 132 tests passing across PostgreSQL 15-18. The original C implementation (pg_walsizer) is retained for reference.
 
 ## No Regression Policy
 
@@ -353,17 +353,17 @@ cargo pgrx test pg18 --pgdata /tmp/pgrx-test-data
 Run pg_regress SQL-based tests.
 
 ```bash
-# Run all pg_regress tests
-cargo pgrx regress pg18
+# Run all pg_regress tests (requires shared_preload_libraries for background worker extensions)
+cargo pgrx regress pg18 --postgresql-conf "shared_preload_libraries='pg_walrus'"
 
 # Run specific test file
-cargo pgrx regress pg18 guc_params
+cargo pgrx regress pg18 --postgresql-conf "shared_preload_libraries='pg_walrus'" guc_params
 
 # Auto-accept new/changed test output
-cargo pgrx regress pg18 --auto
+cargo pgrx regress pg18 --postgresql-conf "shared_preload_libraries='pg_walrus'" --auto
 
 # Reset database before testing
-cargo pgrx regress pg18 --resetdb
+cargo pgrx regress pg18 --postgresql-conf "shared_preload_libraries='pg_walrus'" --resetdb
 
 # Use custom database name
 cargo pgrx regress pg18 --dbname my_test_db
@@ -374,6 +374,8 @@ cargo pgrx regress pg18 --postgresql-conf log_min_messages=debug1
 # Run in release mode
 cargo pgrx regress pg18 --release
 ```
+
+**Important for background worker extensions**: Unlike `cargo pgrx test` (which reads `postgresql_conf_options()` from the `pg_test` module), `cargo pgrx regress` does NOT automatically configure `shared_preload_libraries`. You must pass it explicitly via `--postgresql-conf` for extensions that register background workers.
 
 **Key Options:**
 - `-a, --auto`: Auto-accept new test output AND overwrite failed test output
@@ -661,7 +663,7 @@ cargo pgrx regress pg18 --auto         # Auto-accept changed output
 # Test all supported versions
 for v in pg15 pg16 pg17 pg18; do
     cargo pgrx test $v || exit 1
-    cargo pgrx regress $v || exit 1
+    cargo pgrx regress $v --postgresql-conf "shared_preload_libraries='pg_walrus'" || exit 1
 done
 ```
 
@@ -850,9 +852,13 @@ tests/pg_regress/
 # Test all supported PostgreSQL versions
 cargo pgrx test pg15 && cargo pgrx test pg16 && cargo pgrx test pg17 && cargo pgrx test pg18
 
-# pg_regress all versions
-cargo pgrx regress pg15 && cargo pgrx regress pg16 && cargo pgrx regress pg17 && cargo pgrx regress pg18
+# pg_regress all versions (requires --postgresql-conf for background worker extensions)
+for v in pg15 pg16 pg17 pg18; do
+    cargo pgrx regress $v --postgresql-conf "shared_preload_libraries='pg_walrus'" || exit 1
+done
 ```
+
+**Note**: pgrx-managed PostgreSQL instances (ports 28815-28818 in `~/.pgrx/data-XX`) are separate from any system PostgreSQL installations (e.g., Homebrew on port 5432). Each pgrx instance requires explicit `--postgresql-conf` configuration for `shared_preload_libraries`.
 
 ## Architecture
 
@@ -868,14 +874,14 @@ The extension works by:
 - `pg_walsizer/walsizer.c` - Background worker and main logic (~290 lines)
 - `pg_walsizer/walsizer.h` - Header with `PG_MODULE_MAGIC` export
 
-### Planned Rust Structure
+### Rust Structure
 ```
 src/
-├── lib.rs              # Entry point, _PG_init, GUC registration
+├── lib.rs              # Entry point, _PG_init, GUC registration, tests
 ├── worker.rs           # Background worker implementation
 ├── stats.rs            # Checkpoint statistics access (version-specific)
 ├── config.rs           # ALTER SYSTEM implementation
-└── version_compat.rs   # PG version handling (#[cfg] blocks)
+└── guc.rs              # GUC parameter definitions
 ```
 
 ## GUC Parameters

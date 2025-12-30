@@ -1,0 +1,26 @@
+-- Test GUC parameter defaults and behavior
+-- These tests verify that GUC parameters are correctly registered
+-- Test default values
+SHOW walrus.enable;
+ walrus.enable 
+---------------
+ on
+(1 row)
+
+SHOW walrus.max;
+ walrus.max 
+------------
+ 4GB
+(1 row)
+
+SHOW walrus.threshold;
+ walrus.threshold 
+------------------
+ 2
+(1 row)
+
+-- Note: GUC context is SIGHUP, so parameters cannot be changed with SET
+-- They can only be changed in postgresql.conf or via ALTER SYSTEM
+-- We verify this by checking the error message when trying to SET
+SET walrus.enable = false;
+ERROR:  parameter "walrus.enable" cannot be changed now

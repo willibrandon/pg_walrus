@@ -1,4 +1,4 @@
-comment = 'pg_walrus:  Created by pgrx'
+comment = 'Automatic max_wal_size tuning based on checkpoint activity'
 default_version = '@CARGO_VERSION@'
 module_pathname = 'pg_walrus'
 relocatable = false

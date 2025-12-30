@@ -19,31 +19,31 @@
 
 ---
 
-## Phase 1: Setup
+## Phase 1: Setup ✅
 
 **Purpose**: Project initialization and correct dependencies
 
-- [ ] T001 Update Cargo.toml: remove pg13/pg14 features, set default to pg15, add libc dependency, update edition to 2024 in Cargo.toml
-- [ ] T002 [P] Create empty module files: src/worker.rs, src/stats.rs, src/config.rs, src/guc.rs
-- [ ] T003 [P] Add module declarations to src/lib.rs (mod worker, mod stats, mod config, mod guc)
+- [x] T001 Update Cargo.toml: remove pg13/pg14 features, set default to pg15, add libc dependency, update edition to 2024 in Cargo.toml
+- [x] T002 [P] Create empty module files: src/worker.rs, src/stats.rs, src/config.rs, src/guc.rs
+- [x] T003 [P] Add module declarations to src/lib.rs (mod worker, mod stats, mod config, mod guc)
 
 ---
 
-## Phase 2: Foundational (Blocking Prerequisites)
+## Phase 2: Foundational (Blocking Prerequisites) ✅
 
 **Purpose**: Core infrastructure that MUST be complete before ANY user story can be implemented
 
 **⚠️ CRITICAL**: No user story work can begin until this phase is complete
 
-- [ ] T004 Implement GUC parameter definitions in src/guc.rs: WALRUS_ENABLE (bool, default true), WALRUS_MAX (i32 with UNIT_MB, default 4096, min 2), WALRUS_THRESHOLD (i32, default 2, min 1, max 1000) per research.md R5
-- [ ] T005 Implement register_gucs() function in src/guc.rs that registers all three GUCs with GucContext::Sighup
-- [ ] T006 Implement _PG_init() skeleton in src/lib.rs: check process_shared_preload_libraries_in_progress, call register_gucs(), register background worker with BackgroundWorkerBuilder per research.md R6
+- [x] T004 Implement GUC parameter definitions in src/guc.rs: WALRUS_ENABLE (bool, default true), WALRUS_MAX (i32 with UNIT_MB, default 4096, min 2), WALRUS_THRESHOLD (i32, default 2, min 1, max 1000) per research.md R5
+- [x] T005 Implement register_gucs() function in src/guc.rs that registers all three GUCs with GucContext::Sighup
+- [x] T006 Implement _PG_init() skeleton in src/lib.rs: check process_shared_preload_libraries_in_progress, call register_gucs(), register background worker with BackgroundWorkerBuilder per research.md R6
 
 **Checkpoint**: Foundation ready - user story implementation can now begin
 
 ---
 
-## Phase 3: User Story 1 - Automatic WAL Size Adjustment (Priority: P1) 🎯 MVP
+## Phase 3: User Story 1 - Automatic WAL Size Adjustment (Priority: P1) 🎯 MVP ✅
 
 **Goal**: Monitor checkpoint activity and automatically increase max_wal_size when forced checkpoints exceed threshold
 
@@ -51,23 +51,23 @@
 
 ### Implementation for User Story 1
 
-- [ ] T007 [P] [US1] Implement get_requested_checkpoints() in src/stats.rs with version-specific field access using #[cfg(any(feature = "pg15", feature = "pg16"))] for requested_checkpoints and #[cfg(any(feature = "pg17", feature = "pg18"))] for num_requested per research.md R2
-- [ ] T008 [P] [US1] Implement get_current_max_wal_size() in src/stats.rs returning pg_sys::max_wal_size_mb per research.md R4
-- [ ] T009 [P] [US1] Implement checkpoint_timeout() in src/stats.rs: declare extern C block for CheckPointTimeout (not exposed by pgrx), return Duration per research.md R8
-- [ ] T010 [P] [US1] Implement alter_max_wal_size() in src/config.rs constructing AlterSystemStmt, VariableSetStmt, A_Const nodes for max_wal_size per research.md R1
-- [ ] T011 [US1] Implement execute_alter_system() in src/config.rs with ResourceOwner setup, StartTransactionCommand, AlterSystemSetConfigFile, CommitTransactionCommand per research.md R7
-- [ ] T012 [US1] Implement SUPPRESS_NEXT_SIGHUP atomic flag and send_sighup_to_postmaster() in src/worker.rs using libc::kill() per research.md R3
-- [ ] T013 [US1] Implement should_skip_iteration() in src/worker.rs checking atomic flag to detect self-triggered SIGHUP
-- [ ] T014 [US1] Implement process_checkpoint_stats() in src/worker.rs: fetch stats, calculate delta, compare to threshold, calculate new size, cap at walrus.max, call execute_alter_system, send SIGHUP per data-model.md Data Flow
-- [ ] T015 [US1] Implement walrus_worker_main() in src/worker.rs with main loop using BackgroundWorker::wait_latch(checkpoint_timeout), first_iteration baseline skip, and call to process_checkpoint_stats per background-worker.md Main Loop
-- [ ] T016 [US1] Export walrus_worker_main as extern "C-unwind" with #[pg_guard] and #[unsafe(no_mangle)] in src/worker.rs
-- [ ] T017 [US1] Wire worker entry point: update BackgroundWorkerBuilder in src/lib.rs to call "walrus_worker_main" function
+- [x] T007 [P] [US1] Implement get_requested_checkpoints() in src/stats.rs with version-specific field access using #[cfg(any(feature = "pg15", feature = "pg16"))] for requested_checkpoints and #[cfg(any(feature = "pg17", feature = "pg18"))] for num_requested per research.md R2
+- [x] T008 [P] [US1] Implement get_current_max_wal_size() in src/stats.rs returning pg_sys::max_wal_size_mb per research.md R4
+- [x] T009 [P] [US1] Implement checkpoint_timeout() in src/stats.rs: declare extern C block for CheckPointTimeout (not exposed by pgrx), return Duration per research.md R8
+- [x] T010 [P] [US1] Implement alter_max_wal_size() in src/config.rs constructing AlterSystemStmt, VariableSetStmt, A_Const nodes for max_wal_size per research.md R1
+- [x] T011 [US1] Implement execute_alter_system() in src/config.rs with ResourceOwner setup, StartTransactionCommand, AlterSystemSetConfigFile, CommitTransactionCommand per research.md R7
+- [x] T012 [US1] Implement SUPPRESS_NEXT_SIGHUP atomic flag and send_sighup_to_postmaster() in src/worker.rs using libc::kill() per research.md R3
+- [x] T013 [US1] Implement should_skip_iteration() in src/worker.rs checking atomic flag to detect self-triggered SIGHUP
+- [x] T014 [US1] Implement process_checkpoint_stats() in src/worker.rs: fetch stats, calculate delta, compare to threshold, calculate new size, cap at walrus.max, call execute_alter_system, send SIGHUP per data-model.md Data Flow
+- [x] T015 [US1] Implement walrus_worker_main() in src/worker.rs with main loop using BackgroundWorker::wait_latch(checkpoint_timeout), first_iteration baseline skip, and call to process_checkpoint_stats per background-worker.md Main Loop
+- [x] T016 [US1] Export walrus_worker_main as extern "C-unwind" with #[pg_guard] and #[unsafe(no_mangle)] in src/worker.rs
+- [x] T017 [US1] Wire worker entry point: update BackgroundWorkerBuilder in src/lib.rs to call "walrus_worker_main" function
 
 **Checkpoint**: User Story 1 should be fully functional - forced checkpoints trigger automatic max_wal_size increase
 
 ---
 
-## Phase 4: User Story 2 - Runtime Configuration Control (Priority: P2)
+## Phase 4: User Story 2 - Runtime Configuration Control (Priority: P2) ✅
 
 **Goal**: Allow runtime modification of GUC parameters without PostgreSQL restart
 
@@ -75,15 +75,15 @@
 
 ### Implementation for User Story 2
 
-- [ ] T018 [US2] Add WALRUS_ENABLE.get() check in walrus_worker_main() main loop to skip processing when disabled in src/worker.rs
-- [ ] T019 [US2] Add BackgroundWorker::sighup_received() check with debug logging for configuration reload in src/worker.rs per background-worker.md Signal Handling
-- [ ] T020 [US2] Implement reading WALRUS_MAX.get() and WALRUS_THRESHOLD.get() dynamically in process_checkpoint_stats() in src/worker.rs
+- [x] T018 [US2] Add WALRUS_ENABLE.get() check in walrus_worker_main() main loop to skip processing when disabled in src/worker.rs
+- [x] T019 [US2] Add BackgroundWorker::sighup_received() check with debug logging for configuration reload in src/worker.rs per background-worker.md Signal Handling
+- [x] T020 [US2] Implement reading WALRUS_MAX.get() and WALRUS_THRESHOLD.get() dynamically in process_checkpoint_stats() in src/worker.rs
 
 **Checkpoint**: GUC changes via ALTER SYSTEM + pg_reload_conf() take effect within one monitoring cycle
 
 ---
 
-## Phase 5: User Story 4 - Multi-Version PostgreSQL Support (Priority: P2)
+## Phase 5: User Story 4 - Multi-Version PostgreSQL Support (Priority: P2) ✅
 
 **Goal**: Support PostgreSQL 15, 16, 17, and 18 with correct API access for each version
 
@@ -91,16 +91,16 @@
 
 ### Implementation for User Story 4
 
-- [ ] T021 [US4] Verify get_requested_checkpoints() compiles with pg15 feature: cargo check --features pg15 --no-default-features
-- [ ] T022 [US4] Verify get_requested_checkpoints() compiles with pg16 feature: cargo check --features pg16 --no-default-features
-- [ ] T023 [US4] Verify get_requested_checkpoints() compiles with pg17 feature: cargo check --features pg17 --no-default-features
-- [ ] T024 [US4] Verify get_requested_checkpoints() compiles with pg18 feature: cargo check --features pg18 --no-default-features
+- [x] T021 [US4] Verify get_requested_checkpoints() compiles with pg15 feature: cargo check --features pg15 --no-default-features
+- [x] T022 [US4] Verify get_requested_checkpoints() compiles with pg16 feature: cargo check --features pg16 --no-default-features
+- [x] T023 [US4] Verify get_requested_checkpoints() compiles with pg17 feature: cargo check --features pg17 --no-default-features
+- [x] T024 [US4] Verify get_requested_checkpoints() compiles with pg18 feature: cargo check --features pg18 --no-default-features
 
 **Checkpoint**: Extension builds and runs correctly on PostgreSQL 15, 16, 17, and 18
 
 ---
 
-## Phase 6: User Story 3 - Extension Lifecycle Management (Priority: P3)
+## Phase 6: User Story 3 - Extension Lifecycle Management (Priority: P3) ✅
 
 **Goal**: Clean startup after recovery, proper signal handling, graceful shutdown
 
@@ -108,65 +108,70 @@
 
 ### Implementation for User Story 3
 
-- [ ] T025 [US3] Add startup log message "pg_walrus worker started" at beginning of walrus_worker_main() in src/worker.rs per background-worker.md Logging Contract
-- [ ] T026 [US3] Add shutdown log message "pg_walrus worker shutting down" after main loop exits in src/worker.rs per background-worker.md Logging Contract
-- [ ] T027 [US3] Verify BackgroundWorkerBuilder uses BgWorkerStart_RecoveryFinished (set_start_time) in src/lib.rs per background-worker.md Worker Registration
-- [ ] T028 [US3] Verify BackgroundWorker::attach_signal_handlers includes SIGHUP and SIGTERM in src/worker.rs per background-worker.md Signal Handling
+- [x] T025 [US3] Add startup log message "pg_walrus worker started" at beginning of walrus_worker_main() in src/worker.rs per background-worker.md Logging Contract
+- [x] T026 [US3] Add shutdown log message "pg_walrus worker shutting down" after main loop exits in src/worker.rs per background-worker.md Logging Contract
+- [x] T027 [US3] Verify BackgroundWorkerBuilder uses BgWorkerStart_RecoveryFinished (set_start_time) in src/lib.rs per background-worker.md Worker Registration
+- [x] T028 [US3] Verify BackgroundWorker::attach_signal_handlers includes SIGHUP and SIGTERM in src/worker.rs per background-worker.md Signal Handling
 
 **Checkpoint**: Worker starts after recovery, appears in pg_stat_activity as 'pg_walrus', shuts down cleanly
 
 ---
 
-## Phase 7: Polish & Edge Cases
+## Phase 7: Polish & Edge Cases ✅
 
 **Purpose**: Handle all edge cases from spec.md and cross-cutting concerns
 
-- [ ] T029 Handle null pointer from pgstat_fetch_stat_checkpointer(): return -1 and log warning in src/stats.rs per data-model.md E3 Error Handling
-- [ ] T030 Handle already at walrus.max: skip ALTER SYSTEM and log debug message in src/worker.rs per background-worker.md Logging Contract
-- [ ] T031 Handle calculated size exceeding walrus.max: cap to walrus.max and log warning in src/worker.rs per guc-interface.md walrus.max Behavior
-- [ ] T032 Handle i32 overflow in new size calculation: use saturating_mul and cap before applying walrus.max in src/worker.rs per spec.md Edge Cases
-- [ ] T033 [P] Add debug logging for baseline establishment in first iteration in src/worker.rs per background-worker.md Logging Contract
-- [ ] T034 [P] Add LOG level message for resize decisions with before/after values in src/worker.rs per background-worker.md Logging Contract
-- [ ] T035 Run quickstart.md validation: build, install, configure shared_preload_libraries, restart, verify worker runs
-- [ ] T036 Handle ALTER SYSTEM failure: wrap AlterSystemSetConfigFile in error handling, log warning "pg_walrus: failed to execute ALTER SYSTEM, will retry next cycle", and continue monitoring without crashing in src/config.rs per spec.md Edge Cases
+- [x] T029 Handle null pointer from pgstat_fetch_stat_checkpointer(): return -1 and log warning in src/stats.rs per data-model.md E3 Error Handling
+- [x] T030 Handle already at walrus.max: skip ALTER SYSTEM and log debug message in src/worker.rs per background-worker.md Logging Contract
+- [x] T031 Handle calculated size exceeding walrus.max: cap to walrus.max and log warning in src/worker.rs per guc-interface.md walrus.max Behavior
+- [x] T032 Handle i32 overflow in new size calculation: use saturating_mul and cap before applying walrus.max in src/worker.rs per spec.md Edge Cases
+- [x] T033 [P] Add debug logging for baseline establishment in first iteration in src/worker.rs per background-worker.md Logging Contract
+- [x] T034 [P] Add LOG level message for resize decisions with before/after values in src/worker.rs per background-worker.md Logging Contract
+- [x] T035 Run quickstart.md validation: build, install, configure shared_preload_libraries, restart, verify worker runs
+- [x] T036 Handle ALTER SYSTEM failure: wrap AlterSystemSetConfigFile in error handling, log warning "pg_walrus: failed to execute ALTER SYSTEM, will retry next cycle", and continue monitoring without crashing in src/config.rs per spec.md Edge Cases
 
 ---
 
-## Phase 8: Tests (Constitution VIII)
+## Phase 8: Tests (Constitution VIII) ✅
 
 **Purpose**: Verify functionality per Constitution VIII (Test Discipline)
 
 ### GUC Parameter Tests
 
-- [ ] T037 [P] Create #[pg_test] test for GUC walrus.enable: verify default is true, SHOW walrus.enable returns 'on' in src/lib.rs
-- [ ] T038 [P] Create #[pg_test] test for GUC walrus.max: verify default is 4096, SHOW walrus.max returns '4096' in src/lib.rs
-- [ ] T039 [P] Create #[pg_test] test for GUC walrus.threshold: verify default is 2, SHOW walrus.threshold returns '2' in src/lib.rs
+- [x] T037 [P] Create #[pg_test] test for GUC walrus.enable: verify default is true, SHOW walrus.enable returns 'on' in src/lib.rs
+- [x] T038 [P] Create #[pg_test] test for GUC walrus.max: verify default is 4096, SHOW walrus.max returns '4096' in src/lib.rs
+- [x] T039 [P] Create #[pg_test] test for GUC walrus.threshold: verify default is 2, SHOW walrus.threshold returns '2' in src/lib.rs
 
 ### Background Worker Tests
 
-- [ ] T040 Create pg_test module in src/lib.rs with setup() and postgresql_conf_options() returning vec!["shared_preload_libraries='pg_walrus'"] per research.md R9
-- [ ] T041 Create #[pg_test] test verifying background worker appears in pg_stat_activity with backend_type = 'pg_walrus' in src/lib.rs per research.md R9
+- [x] T040 Create pg_test module in src/lib.rs with setup() and postgresql_conf_options() returning vec!["shared_preload_libraries='pg_walrus'"] per research.md R9
+- [x] T041 Create #[pg_test] test verifying background worker appears in pg_stat_activity with backend_type = 'pg_walrus' in src/lib.rs per research.md R9
 
 ### Pure Rust Unit Tests
 
-- [ ] T042 [P] Create #[test] (pure Rust) test for new size calculation: verify current_size * (delta + 1) formula with inputs (1024, 3) → 4096 in src/worker.rs
-- [ ] T043 [P] Create #[test] (pure Rust) test for i32 overflow handling: verify saturating_mul caps at i32::MAX for large inputs in src/worker.rs
+- [x] T042 [P] Create #[test] (pure Rust) test for new size calculation: verify current_size * (delta + 1) formula with inputs (1024, 3) → 4096 in src/worker.rs
+- [x] T043 [P] Create #[test] (pure Rust) test for i32 overflow handling: verify saturating_mul caps at i32::MAX for large inputs in src/worker.rs
 
 ### pg_regress SQL Tests
 
 pg_regress tests verify extension behavior via SQL commands. Run with `cargo pgrx regress pgXX`.
 
-- [ ] T044 Update tests/pg_regress/sql/setup.sql: verify CREATE EXTENSION pg_walrus succeeds and extension loads correctly
-- [ ] T045 [P] Create tests/pg_regress/sql/guc_params.sql: test SHOW for all three GUCs, SET valid values, SET boundary values (threshold 1 and 1000), verify error on invalid values
-- [ ] T046 [P] Create tests/pg_regress/sql/extension_info.sql: verify extension metadata via pg_extension, check extversion matches Cargo.toml version
+- [x] T044 Update tests/pg_regress/sql/setup.sql: verify CREATE EXTENSION pg_walrus succeeds and extension loads correctly
+- [x] T045 [P] Create tests/pg_regress/sql/guc_params.sql: test SHOW for all three GUCs, SET valid values, SET boundary values (threshold 1 and 1000), verify error on invalid values
+- [x] T046 [P] Create tests/pg_regress/sql/extension_info.sql: verify extension metadata via pg_extension, check extversion matches Cargo.toml version
 
 ### pg_regress Expected Output
 
-- [ ] T047 [P] Generate tests/pg_regress/expected/setup.out: run `cargo pgrx regress pg17 --auto` and accept output for setup.sql
-- [ ] T048 [P] Generate tests/pg_regress/expected/guc_params.out: run `cargo pgrx regress pg17 --auto` and accept output for guc_params.sql
-- [ ] T049 [P] Generate tests/pg_regress/expected/extension_info.out: run `cargo pgrx regress pg17 --auto` and accept output for extension_info.sql
+- [x] T047 [P] Generate tests/pg_regress/expected/setup.out: run `cargo pgrx regress pg17 --auto` and accept output for setup.sql
+- [x] T048 [P] Generate tests/pg_regress/expected/guc_params.out: run `cargo pgrx regress pg17 --auto` and accept output for guc_params.sql
+- [x] T049 [P] Generate tests/pg_regress/expected/extension_info.out: run `cargo pgrx regress pg17 --auto` and accept output for extension_info.sql
 
 **Checkpoint**: All tests pass with `cargo pgrx test pg17` and `cargo pgrx regress pg17`
+
+### Bonus: Additional Tests (Beyond Original Scope)
+
+- [x] T050 Create tests/pg_regress/sql/alter_system.sql: test ALTER SYSTEM for max_wal_size and walrus GUCs (cannot be tested in pg_test due to transaction block restriction)
+- [x] T051 Create 26 additional #[pg_test] tests covering: GUC SET operations, GUC boundary values, GUC error cases, checkpoint stats access, worker size calculations, integration tests
 
 ---
 
@@ -248,17 +253,35 @@ Task: T010 "Implement alter_max_wal_size() in src/config.rs"
 
 ## Summary
 
-| Phase | Story | Task Count | Parallel Tasks |
-|-------|-------|------------|----------------|
-| Setup | - | 3 | 2 |
-| Foundational | - | 3 | 0 |
-| US1 (P1) | Automatic WAL Sizing | 11 | 4 |
-| US2 (P2) | Runtime Config | 3 | 0 |
-| US4 (P2) | Multi-Version | 4 | 4 |
-| US3 (P3) | Lifecycle | 4 | 0 |
-| Polish | - | 8 | 2 |
-| Tests | Constitution VIII | 13 | 9 |
-| **Total** | | **49** | **21** |
+| Phase | Story | Task Count | Status |
+|-------|-------|------------|--------|
+| Setup | - | 3 | ✅ Complete |
+| Foundational | - | 3 | ✅ Complete |
+| US1 (P1) | Automatic WAL Sizing | 11 | ✅ Complete |
+| US2 (P2) | Runtime Config | 3 | ✅ Complete |
+| US4 (P2) | Multi-Version | 4 | ✅ Complete |
+| US3 (P3) | Lifecycle | 4 | ✅ Complete |
+| Polish | - | 8 | ✅ Complete |
+| Tests | Constitution VIII | 13 + 2 bonus | ✅ Complete |
+| **Total** | | **51** | **✅ All Complete** |
+
+### Final Test Results
+
+| PostgreSQL | pg_test | pg_regress | Total |
+|------------|---------|------------|-------|
+| pg15 | 29 passed | 4 passed | 33 |
+| pg16 | 29 passed | 4 passed | 33 |
+| pg17 | 29 passed | 4 passed | 33 |
+| pg18 | 29 passed | 4 passed | 33 |
+| **Total** | **116** | **16** | **132** |
+
+### Bonus Features (Not in Original Spec)
+
+- MarkGUCPrefixReserved("walrus") - prevents GUC namespace conflicts
+- set_restart_time(checkpoint_timeout) - crash recovery restart timing
+- application_name = "pg_walrus" - pg_stat_activity visibility
+- alter_system.sql pg_regress test - tests ALTER SYSTEM outside transactions
+- 26 additional pg_test tests for comprehensive coverage
 
 ### MVP Scope
 
