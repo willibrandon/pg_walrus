@@ -910,12 +910,16 @@ The extension works by:
 ### Source Structure
 ```
 src/
-├── lib.rs              # Entry point, _PG_init, GUC registration, SQL functions, tests
+├── lib.rs              # Entry point, _PG_init, GUC registration, pg_schema wrappers
 ├── worker.rs           # Background worker implementation
 ├── stats.rs            # Checkpoint statistics access (version-specific)
 ├── config.rs           # ALTER SYSTEM implementation
 ├── guc.rs              # GUC parameter definitions
-└── history.rs          # History table operations (insert, cleanup)
+├── history.rs          # History table operations (insert, cleanup)
+├── shmem.rs            # Shared memory state (WalrusState, PgLwLock)
+├── algorithm.rs        # Sizing algorithms (calculate_new_size, compute_recommendation)
+├── functions.rs        # SQL function implementations (status, history, analyze, etc.)
+└── tests.rs            # PostgreSQL integration tests (#[pg_test])
 ```
 
 ## GUC Parameters

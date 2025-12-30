@@ -19,12 +19,12 @@
 
 **Purpose**: Create new modules and establish shared memory infrastructure
 
-- [ ] T001 Create shared memory state struct `WalrusState` with 5 fields (quiet_intervals, total_adjustments, prev_requested, last_check_time, last_adjustment_time) in `src/shmem.rs`
-- [ ] T002 Implement `PGRXSharedMemory` trait and `PgLwLock<WalrusState>` static in `src/shmem.rs`
-- [ ] T003 Add helper functions `read_state()`, `update_state()`, `reset_state()` in `src/shmem.rs`
-- [ ] T004 Add `mod shmem` declaration and `pg_shmem_init!(WALRUS_STATE)` to `_PG_init()` in `src/lib.rs`
-- [ ] T005 [P] Create `src/algorithm.rs` module stub with function signatures from plan.md
-- [ ] T006 [P] Create `src/functions.rs` module stub with `#[pg_schema] mod walrus` namespace
+- [X] T001 Create shared memory state struct `WalrusState` with 5 fields (quiet_intervals, total_adjustments, prev_requested, last_check_time, last_adjustment_time) in `src/shmem.rs`
+- [X] T002 Implement `PGRXSharedMemory` trait and `PgLwLock<WalrusState>` static in `src/shmem.rs`
+- [X] T003 Add helper functions `read_state()`, `update_state()`, `reset_state()` in `src/shmem.rs`
+- [X] T004 Add `mod shmem` declaration and `pg_shmem_init!(WALRUS_STATE)` to `_PG_init()` in `src/lib.rs`
+- [X] T005 [P] Create `src/algorithm.rs` module stub with function signatures from plan.md
+- [X] T006 [P] Create `src/functions.rs` module stub with `#[pg_schema] mod walrus` namespace
 
 ---
 
@@ -34,18 +34,18 @@
 
 **CRITICAL**: Worker refactoring depends on algorithm module completion
 
-- [ ] T007 Move `calculate_new_size()` from `src/worker.rs` to `src/algorithm.rs`, keep public export
-- [ ] T008 Move `calculate_shrink_size()` from `src/worker.rs` to `src/algorithm.rs`, keep public export
-- [ ] T009 Implement `Recommendation` struct with fields: current_size_mb, recommended_size_mb, action, reason, confidence in `src/algorithm.rs`
-- [ ] T010 Implement `compute_confidence()` function per data-model.md formula in `src/algorithm.rs`
-- [ ] T011 Implement `compute_recommendation()` function that computes grow/shrink/none/error action in `src/algorithm.rs`
-- [ ] T012 [P] Add pure Rust unit tests for `compute_confidence()` in `src/algorithm.rs`
-- [ ] T013 [P] Add pure Rust unit tests for `compute_recommendation()` in `src/algorithm.rs`
-- [ ] T014 Update `src/worker.rs` to import `calculate_new_size` and `calculate_shrink_size` from algorithm module
-- [ ] T015 Refactor `src/worker.rs` to use `shmem::update_state()` for storing quiet_intervals, prev_requested, timestamps
-- [ ] T016 Refactor `src/worker.rs` to increment `total_adjustments` in shmem after each resize
-- [ ] T017 Add `mod algorithm` declaration to `src/lib.rs`
-- [ ] T018 Verify existing tests pass with refactored worker via `cargo pgrx test pg18`
+- [X] T007 Move `calculate_new_size()` from `src/worker.rs` to `src/algorithm.rs`, keep public export
+- [X] T008 Move `calculate_shrink_size()` from `src/worker.rs` to `src/algorithm.rs`, keep public export
+- [X] T009 Implement `Recommendation` struct with fields: current_size_mb, recommended_size_mb, action, reason, confidence in `src/algorithm.rs`
+- [X] T010 Implement `compute_confidence()` function per data-model.md formula in `src/algorithm.rs`
+- [X] T011 Implement `compute_recommendation()` function that computes grow/shrink/none/error action in `src/algorithm.rs`
+- [X] T012 [P] Add pure Rust unit tests for `compute_confidence()` in `src/algorithm.rs`
+- [X] T013 [P] Add pure Rust unit tests for `compute_recommendation()` in `src/algorithm.rs`
+- [X] T014 Update `src/worker.rs` to import `calculate_new_size` and `calculate_shrink_size` from algorithm module
+- [X] T015 Refactor `src/worker.rs` to use `shmem::update_state()` for storing quiet_intervals, prev_requested, timestamps
+- [X] T016 Refactor `src/worker.rs` to increment `total_adjustments` in shmem after each resize
+- [X] T017 Add `mod algorithm` declaration to `src/lib.rs`
+- [X] T018 Verify existing tests pass with refactored worker via `cargo pgrx test pg18`
 
 **Checkpoint**: Foundation ready - shmem working, algorithm extracted, worker refactored
 
@@ -59,21 +59,21 @@
 
 ### Tests for User Story 1
 
-- [ ] T019 [P] [US1] Add `#[pg_test]` for `walrus.status()` returns valid JSONB in `src/lib.rs`
-- [ ] T020 [P] [US1] Add `#[pg_test]` for `walrus.status()` contains `enabled` field matching GUC in `src/lib.rs`
-- [ ] T021 [P] [US1] Add `#[pg_test]` for `walrus.status()` contains `worker_running` field in `src/lib.rs`
-- [ ] T022 [P] [US1] Add `#[pg_test]` for `walrus.status()` contains `at_ceiling` field in `src/lib.rs`
-- [ ] T023 [P] [US1] Add pg_regress test for `walrus.status()` in `tests/pg_regress/sql/observability.sql`
+- [X] T019 [P] [US1] Add `#[pg_test]` for `walrus.status()` returns valid JSONB in `src/lib.rs`
+- [X] T020 [P] [US1] Add `#[pg_test]` for `walrus.status()` contains `enabled` field matching GUC in `src/lib.rs`
+- [X] T021 [P] [US1] Add `#[pg_test]` for `walrus.status()` contains `worker_running` field in `src/lib.rs`
+- [X] T022 [P] [US1] Add `#[pg_test]` for `walrus.status()` contains `at_ceiling` field in `src/lib.rs`
+- [X] T023 [P] [US1] Add pg_regress test for `walrus.status()` in `tests/pg_regress/sql/observability.sql`
 
 ### Implementation for User Story 1
 
-- [ ] T024 [US1] Implement `check_worker_running()` helper that queries `pg_stat_activity` in `src/functions.rs`
-- [ ] T025 [US1] Implement `unix_timestamp_to_iso()` helper for timestamp formatting in `src/functions.rs`
-- [ ] T026 [US1] Implement `walrus.status()` function returning JsonB with all 15 fields per contract in `src/functions.rs`
-- [ ] T027 [US1] Handle edge case: null timestamps when worker hasn't completed first cycle in `src/functions.rs`
-- [ ] T028 [US1] Handle edge case: `at_ceiling` when `current_max_wal_size_mb >= configured_maximum_mb` in `src/functions.rs`
-- [ ] T029 [US1] Add `mod functions` declaration to `src/lib.rs`
-- [ ] T030 [US1] Verify `walrus.status()` execution time < 100ms via `#[pg_test]` with timing in `src/lib.rs`
+- [X] T024 [US1] Implement `check_worker_running()` helper that queries `pg_stat_activity` in `src/functions.rs`
+- [X] T025 [US1] Implement `unix_timestamp_to_iso()` helper for timestamp formatting in `src/functions.rs`
+- [X] T026 [US1] Implement `walrus.status()` function returning JsonB with all 15 fields per contract in `src/functions.rs`
+- [X] T027 [US1] Handle edge case: null timestamps when worker hasn't completed first cycle in `src/functions.rs`
+- [X] T028 [US1] Handle edge case: `at_ceiling` when `current_max_wal_size_mb >= configured_maximum_mb` in `src/functions.rs`
+- [X] T029 [US1] Add `mod functions` declaration to `src/lib.rs`
+- [X] T030 [US1] Verify `walrus.status()` execution time < 100ms via `#[pg_test]` with timing in `src/lib.rs`
 
 **Checkpoint**: `SELECT walrus.status()` returns complete JSONB with all configuration and worker state
 
@@ -87,17 +87,17 @@
 
 ### Tests for User Story 2
 
-- [ ] T031 [P] [US2] Add `#[pg_test]` for `walrus.history()` returns empty set when no adjustments in `src/lib.rs`
-- [ ] T032 [P] [US2] Add `#[pg_test]` for `walrus.history()` returns rows after insert_history_record in `src/lib.rs`
-- [ ] T033 [P] [US2] Add `#[pg_test]` for `walrus.history()` column types match contract in `src/lib.rs`
-- [ ] T034 [P] [US2] Add pg_regress test for `walrus.history()` in `tests/pg_regress/sql/observability.sql`
+- [X] T031 [P] [US2] Add `#[pg_test]` for `walrus.history()` returns empty set when no adjustments in `src/lib.rs`
+- [X] T032 [P] [US2] Add `#[pg_test]` for `walrus.history()` returns rows after insert_history_record in `src/lib.rs`
+- [X] T033 [P] [US2] Add `#[pg_test]` for `walrus.history()` column types match contract in `src/lib.rs`
+- [X] T034 [P] [US2] Add pg_regress test for `walrus.history()` in `tests/pg_regress/sql/observability.sql`
 
 ### Implementation for User Story 2
 
-- [ ] T035 [US2] Implement `walrus.history()` function using `TableIterator` with `name!()` macro in `src/functions.rs`
-- [ ] T036 [US2] Use SPI to SELECT from walrus.history table with proper column mapping in `src/functions.rs`
-- [ ] T037 [US2] Handle edge case: return SQL error if history table was dropped in `src/functions.rs`
-- [ ] T038 [US2] Move existing `walrus.cleanup_history()` from `src/lib.rs` to `src/functions.rs`
+- [X] T035 [US2] Implement `walrus.history()` function using `TableIterator` with `name!()` macro in `src/functions.rs`
+- [X] T036 [US2] Use SPI to SELECT from walrus.history table with proper column mapping in `src/functions.rs`
+- [X] T037 [US2] Handle edge case: return SQL error if history table was dropped in `src/functions.rs`
+- [X] T038 [US2] Move existing `walrus.cleanup_history()` from `src/lib.rs` to `src/functions.rs`
 
 **Checkpoint**: `SELECT * FROM walrus.history()` returns complete history with correct column types
 
@@ -111,17 +111,17 @@
 
 ### Tests for User Story 3
 
-- [ ] T039 [P] [US3] Add `#[pg_test]` for `walrus.recommendation()` returns valid JSONB in `src/lib.rs`
-- [ ] T040 [P] [US3] Add `#[pg_test]` for `walrus.recommendation()` contains `confidence` 0-100 in `src/lib.rs`
-- [ ] T041 [P] [US3] Add `#[pg_test]` for `walrus.recommendation()` action is one of: increase/decrease/none/error in `src/lib.rs`
-- [ ] T042 [P] [US3] Add pg_regress test for `walrus.recommendation()` in `tests/pg_regress/sql/observability.sql`
+- [X] T039 [P] [US3] Add `#[pg_test]` for `walrus.recommendation()` returns valid JSONB in `src/lib.rs`
+- [X] T040 [P] [US3] Add `#[pg_test]` for `walrus.recommendation()` contains `confidence` 0-100 in `src/lib.rs`
+- [X] T041 [P] [US3] Add `#[pg_test]` for `walrus.recommendation()` action is one of: increase/decrease/none/error in `src/lib.rs`
+- [X] T042 [P] [US3] Add pg_regress test for `walrus.recommendation()` in `tests/pg_regress/sql/observability.sql`
 
 ### Implementation for User Story 3
 
-- [ ] T043 [US3] Implement `walrus.recommendation()` using `algorithm::compute_recommendation()` in `src/functions.rs`
-- [ ] T044 [US3] Read shmem state (prev_requested, quiet_intervals) for recommendation calculation in `src/functions.rs`
-- [ ] T045 [US3] Fetch current checkpoint stats via `stats::get_requested_checkpoints()` in `src/functions.rs`
-- [ ] T046 [US3] Handle edge case: return `action: "error"` when checkpoint stats unavailable in `src/functions.rs`
+- [X] T043 [US3] Implement `walrus.recommendation()` using `algorithm::compute_recommendation()` in `src/functions.rs`
+- [X] T044 [US3] Read shmem state (prev_requested, quiet_intervals) for recommendation calculation in `src/functions.rs`
+- [X] T045 [US3] Fetch current checkpoint stats via `stats::get_requested_checkpoints()` in `src/functions.rs`
+- [X] T046 [US3] Handle edge case: return `action: "error"` when checkpoint stats unavailable in `src/functions.rs`
 
 **Checkpoint**: `SELECT walrus.recommendation()` returns actionable recommendation without modifying state
 
@@ -135,19 +135,19 @@
 
 ### Tests for User Story 4
 
-- [ ] T047 [P] [US4] Add `#[pg_test]` for `walrus.analyze()` returns `analyzed: true` and completes within 5 seconds (SC-005) in `src/lib.rs`
-- [ ] T048 [P] [US4] Add `#[pg_test]` for `walrus.analyze()` returns `applied: false` by default in `src/lib.rs`
-- [ ] T049 [P] [US4] Add `#[pg_test]` for `walrus.analyze(apply := true)` requires superuser (expect error) in `src/lib.rs`
-- [ ] T050 [P] [US4] Add pg_regress test for `walrus.analyze()` in `tests/pg_regress/sql/observability.sql`
+- [X] T047 [P] [US4] Add `#[pg_test]` for `walrus.analyze()` returns `analyzed: true` and completes within 5 seconds (SC-005) in `src/lib.rs`
+- [X] T048 [P] [US4] Add `#[pg_test]` for `walrus.analyze()` returns `applied: false` by default in `src/lib.rs`
+- [X] T049 [P] [US4] Add `#[pg_test]` for `walrus.analyze(apply := true)` requires superuser (expect error) in `src/lib.rs`
+- [X] T050 [P] [US4] Add pg_regress test for `walrus.analyze()` in `tests/pg_regress/sql/observability.sql`
 
 ### Implementation for User Story 4
 
-- [ ] T051 [US4] Implement `walrus.analyze(apply boolean DEFAULT false)` with `default!()` macro in `src/functions.rs`
-- [ ] T052 [US4] Add superuser check for `apply = true` using `pg_sys::superuser()` in `src/functions.rs`
-- [ ] T053 [US4] Use `algorithm::compute_recommendation()` for analysis in `src/functions.rs`
-- [ ] T054 [US4] Execute `config::execute_alter_system()` when `apply = true` and action != "none" in `src/functions.rs`
-- [ ] T055 [US4] Handle edge case: return `analyzed: false, reason: "extension is disabled"` when `walrus.enable = false` in `src/functions.rs`
-- [ ] T056 [US4] Handle edge case: `applied` only true when `apply` param is true AND change executed in `src/functions.rs`
+- [X] T051 [US4] Implement `walrus.analyze(apply boolean DEFAULT false)` with `default!()` macro in `src/functions.rs`
+- [X] T052 [US4] Add superuser check for `apply = true` using `pg_sys::superuser()` in `src/functions.rs`
+- [X] T053 [US4] Use `algorithm::compute_recommendation()` for analysis in `src/functions.rs`
+- [X] T054 [US4] Execute `config::execute_alter_system()` when `apply = true` and action != "none" in `src/functions.rs`
+- [X] T055 [US4] Handle edge case: return `analyzed: false, reason: "extension is disabled"` when `walrus.enable = false` in `src/functions.rs`
+- [X] T056 [US4] Handle edge case: `applied` only true when `apply` param is true AND change executed in `src/functions.rs`
 
 **Checkpoint**: `SELECT walrus.analyze()` performs analysis; `analyze(apply := true)` executes changes
 
@@ -161,18 +161,18 @@
 
 ### Tests for User Story 5
 
-- [ ] T057 [P] [US5] Add `#[pg_test]` for `walrus.reset()` requires superuser (expect error as non-super) in `src/lib.rs`
-- [ ] T058 [P] [US5] Add `#[pg_test]` for `walrus.reset()` returns true on success in `src/lib.rs`
-- [ ] T059 [P] [US5] Add `#[pg_test]` for `walrus.reset()` clears shmem counters (verify via status) in `src/lib.rs`
-- [ ] T060 [P] [US5] Add `#[pg_test]` for `walrus.reset()` clears history table in `src/lib.rs`
-- [ ] T061 [P] [US5] Add pg_regress test for `walrus.reset()` in `tests/pg_regress/sql/observability.sql`
+- [X] T057 [P] [US5] Add `#[pg_test]` for `walrus.reset()` requires superuser (expect error as non-super) in `src/lib.rs`
+- [X] T058 [P] [US5] Add `#[pg_test]` for `walrus.reset()` returns true on success in `src/lib.rs`
+- [X] T059 [P] [US5] Add `#[pg_test]` for `walrus.reset()` clears shmem counters (verify via status) in `src/lib.rs`
+- [X] T060 [P] [US5] Add `#[pg_test]` for `walrus.reset()` clears history table in `src/lib.rs`
+- [X] T061 [P] [US5] Add pg_regress test for `walrus.reset()` in `tests/pg_regress/sql/observability.sql`
 
 ### Implementation for User Story 5
 
-- [ ] T062 [US5] Implement `walrus.reset()` with superuser check in `src/functions.rs`
-- [ ] T063 [US5] Clear shmem state via `shmem::reset_state()` in `src/functions.rs`
-- [ ] T064 [US5] Delete all rows from walrus.history via SPI in `src/functions.rs`
-- [ ] T065 [US5] Handle edge case: return true with WARNING if history table dropped (shmem still reset) in `src/functions.rs`
+- [X] T062 [US5] Implement `walrus.reset()` with superuser check in `src/functions.rs`
+- [X] T063 [US5] Clear shmem state via `shmem::reset_state()` in `src/functions.rs`
+- [X] T064 [US5] Delete all rows from walrus.history via SPI in `src/functions.rs`
+- [X] T065 [US5] Handle edge case: return true with WARNING if history table dropped (shmem still reset) in `src/functions.rs`
 
 **Checkpoint**: `SELECT walrus.reset()` clears all state; worker sees zeros on next cycle
 
@@ -182,16 +182,16 @@
 
 **Purpose**: Final integration, documentation, and multi-version testing
 
-- [ ] T066 Create expected output file `tests/pg_regress/expected/observability.out`
-- [ ] T067 Run `cargo pgrx regress pg18 --postgresql-conf "shared_preload_libraries='pg_walrus'"` and verify pass
-- [ ] T068 Run full test suite on pg15: `cargo pgrx test pg15`
-- [ ] T069 Run full test suite on pg16: `cargo pgrx test pg16`
-- [ ] T070 Run full test suite on pg17: `cargo pgrx test pg17`
-- [ ] T071 Run full test suite on pg18: `cargo pgrx test pg18`
-- [ ] T072 Verify all files < 900 LOC via `wc -l src/*.rs`
-- [ ] T073 Run `cargo clippy -- -D warnings` and fix any warnings
-- [ ] T074 Run `cargo fmt --check` and fix any formatting issues
-- [ ] T075 Validate quickstart.md examples work via manual testing
+- [X] T066 Create expected output file `tests/pg_regress/expected/observability.out`
+- [X] T067 Run `cargo pgrx regress pg18 --postgresql-conf "shared_preload_libraries='pg_walrus'"` and verify pass
+- [X] T068 Run full test suite on pg15: `cargo pgrx test pg15`
+- [X] T069 Run full test suite on pg16: `cargo pgrx test pg16`
+- [X] T070 Run full test suite on pg17: `cargo pgrx test pg17`
+- [X] T071 Run full test suite on pg18: `cargo pgrx test pg18`
+- [X] T072 Verify all files < 900 LOC via `wc -l src/*.rs`
+- [X] T073 Run `cargo clippy -- -D warnings` and fix any warnings
+- [X] T074 Run `cargo fmt --check` and fix any formatting issues
+- [X] T075 Validate quickstart.md examples work via manual testing
 
 ---
 

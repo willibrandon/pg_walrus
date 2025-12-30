@@ -36,9 +36,9 @@ LOG:  parameter "max_wal_size" changed to "2560"
 - Live configuration updates via `ALTER SYSTEM` + `SIGHUP`
 - **Auto-Shrink**: Automatically reduce `max_wal_size` after sustained periods of low checkpoint activity
 - **History Table**: Full audit trail of all sizing adjustments in `walrus.history`
+- **SQL Functions**: Query status, history, and recommendations; trigger immediate analysis
 
 ### Planned
-- **SQL Functions**: Query status and recommendations via SQL
 - **Dry-Run Mode**: Test behavior without making changes
 - **Rate Limiting**: Prevent thrashing on unstable workloads
 - **NOTIFY Events**: Real-time notifications on adjustments
@@ -211,6 +211,71 @@ ALTER SYSTEM SET walrus.threshold = 5;
 
 -- Reload configuration
 SELECT pg_reload_conf();
+```
+
+## SQL Functions
+
+All functions are in the `walrus` schema.
+
+### walrus.status()
+
+Returns JSONB with current extension state including configuration, worker status, and counters.
+
+```sql
+SELECT walrus.status();
+-- Returns: {"enabled": true, "worker_running": true, "current_max_wal_size_mb": 1024, ...}
+
+-- Pretty-print for readability
+SELECT jsonb_pretty(walrus.status());
+```
+
+### walrus.history()
+
+Returns adjustment history as a set of records (alternative to querying the table directly).
+
+```sql
+SELECT * FROM walrus.history();
+-- Returns: timestamp, action, old_size_mb, new_size_mb, forced_checkpoints, reason
+```
+
+### walrus.recommendation()
+
+Returns the current sizing recommendation without applying any changes.
+
+```sql
+SELECT walrus.recommendation();
+-- Returns: {"action": "increase", "current_size_mb": 512, "recommended_size_mb": 1024, "confidence": 85, "reason": "..."}
+```
+
+### walrus.analyze(apply)
+
+Triggers immediate analysis. With `apply := true`, executes the recommendation (superuser only).
+
+```sql
+-- Just analyze, don't apply
+SELECT walrus.analyze();
+
+-- Analyze and apply the recommendation immediately
+SELECT walrus.analyze(apply := true);
+-- Returns: {"analyzed": true, "applied": true, "recommendation": {...}}
+```
+
+### walrus.reset()
+
+Clears all history and resets shared memory counters. Superuser only.
+
+```sql
+SELECT walrus.reset();
+-- Returns: true
+```
+
+### walrus.cleanup_history()
+
+Deletes history records older than `walrus.history_retention_days`.
+
+```sql
+SELECT walrus.cleanup_history();
+-- Returns: number of deleted records
 ```
 
 ## PostgreSQL Version Support

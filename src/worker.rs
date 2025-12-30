@@ -4,13 +4,18 @@
 //! and triggers max_wal_size adjustments when forced checkpoints exceed the threshold.
 //! It also handles automatic shrinking of max_wal_size after sustained periods of
 //! low checkpoint activity.
+//!
+//! Worker state is persisted to shared memory (`shmem::WALRUS_STATE`) so SQL functions
+//! can read real-time metrics.
 
+use crate::algorithm::{calculate_new_size, calculate_shrink_size};
 use crate::config::execute_alter_system;
 use crate::guc::{
     WALRUS_ENABLE, WALRUS_MAX, WALRUS_MIN_SIZE, WALRUS_SHRINK_ENABLE, WALRUS_SHRINK_FACTOR,
     WALRUS_SHRINK_INTERVALS, WALRUS_THRESHOLD,
 };
 use crate::history;
+use crate::shmem::{self, now_unix};
 use crate::stats::{checkpoint_timeout, get_current_max_wal_size, get_requested_checkpoints};
 
 use pgrx::bgworkers::{BackgroundWorker, SignalWakeFlags};
@@ -45,31 +50,6 @@ fn should_skip_iteration() -> bool {
     SUPPRESS_NEXT_SIGHUP.swap(false, Ordering::SeqCst)
 }
 
-/// Calculate the new max_wal_size based on forced checkpoint count.
-///
-/// Formula: current_size * (delta + 1)
-///
-/// Uses saturating_mul to prevent i32 overflow. Returns the calculated value
-/// before capping at walrus.max (capping is done by the caller).
-#[inline]
-pub fn calculate_new_size(current_size: i32, delta: i64) -> i32 {
-    let multiplier = (delta + 1) as i32;
-    current_size.saturating_mul(multiplier)
-}
-
-/// Calculate the shrink target size for max_wal_size.
-///
-/// Formula: ceil(current_size * shrink_factor), clamped to min_size
-///
-/// Uses f64 multiplication then rounds up via ceiling to ensure we don't
-/// under-size. The result is clamped to min_size as a floor.
-#[inline]
-pub fn calculate_shrink_size(current_size: i32, shrink_factor: f64, min_size: i32) -> i32 {
-    let raw = (current_size as f64) * shrink_factor;
-    let rounded = raw.ceil() as i32;
-    rounded.max(min_size)
-}
-
 /// Process checkpoint statistics and trigger resize if needed.
 ///
 /// This is the core monitoring logic called each wake cycle:
@@ -77,14 +57,11 @@ pub fn calculate_shrink_size(current_size: i32, shrink_factor: f64, min_size: i3
 /// 2. Calculate delta from previous count
 /// 3. GROW PATH: If delta >= threshold, calculate and apply new max_wal_size, reset quiet_intervals
 /// 4. SHRINK PATH: If delta < threshold, increment quiet_intervals, potentially shrink
+/// 5. Update shared memory state for SQL function visibility
 ///
 /// The quiet_intervals counter tracks consecutive intervals with low activity.
-/// It is initialized to 0 on worker start (ephemeral state - resets on PostgreSQL restart).
-fn process_checkpoint_stats(
-    first_iteration: &mut bool,
-    prev_requested: &mut i64,
-    quiet_intervals: &mut i32,
-) {
+/// State is persisted to shared memory so SQL functions can read real-time metrics.
+fn process_checkpoint_stats(first_iteration: &mut bool) {
     // Fetch current checkpoint count
     let current_requested = get_requested_checkpoints();
 
@@ -94,9 +71,17 @@ fn process_checkpoint_stats(
         return;
     }
 
+    // Update last_check_time in shared memory
+    let now = now_unix();
+    shmem::update_state(|state| {
+        state.last_check_time = now;
+    });
+
     // First iteration: establish baseline
     if *first_iteration {
-        *prev_requested = current_requested;
+        shmem::update_state(|state| {
+            state.prev_requested = current_requested;
+        });
         *first_iteration = false;
         pgrx::debug1!(
             "pg_walrus: established baseline checkpoint count: {}",
@@ -105,9 +90,18 @@ fn process_checkpoint_stats(
         return;
     }
 
+    // Read current state from shared memory
+    let state = shmem::read_state();
+    let prev_requested = state.prev_requested;
+    let quiet_intervals = state.quiet_intervals;
+
     // Calculate delta since last check
-    let delta = current_requested - *prev_requested;
-    *prev_requested = current_requested;
+    let delta = current_requested - prev_requested;
+
+    // Update prev_requested in shared memory
+    shmem::update_state(|state| {
+        state.prev_requested = current_requested;
+    });
 
     // Check threshold
     let threshold = WALRUS_THRESHOLD.get() as i64;
@@ -116,7 +110,10 @@ fn process_checkpoint_stats(
         // =====================================================================
         // GROW PATH: Activity detected, reset quiet intervals and potentially grow
         // =====================================================================
-        *quiet_intervals = 0;
+        // Reset quiet intervals (we only need the shmem update, not local variable)
+        shmem::update_state(|state| {
+            state.quiet_intervals = 0;
+        });
 
         // Get current max_wal_size
         let current_size = get_current_max_wal_size();
@@ -168,6 +165,12 @@ fn process_checkpoint_stats(
             return;
         }
 
+        // Update shared memory state for successful adjustment
+        shmem::update_state(|state| {
+            state.total_adjustments += 1;
+            state.last_adjustment_time = now_unix();
+        });
+
         // Log to history table (FR-002, FR-003, FR-011)
         let (action, reason, metadata) = if is_capped {
             (
@@ -212,7 +215,11 @@ fn process_checkpoint_stats(
         // =====================================================================
         // SHRINK PATH: Low activity, increment quiet intervals and potentially shrink
         // =====================================================================
-        *quiet_intervals += 1;
+        shmem::update_state(|state| {
+            state.quiet_intervals += 1;
+        });
+        // Re-read the incremented value for shrink logic
+        let new_quiet_intervals = quiet_intervals + 1;
 
         // Check all shrink conditions
         let shrink_enable = WALRUS_SHRINK_ENABLE.get();
@@ -225,7 +232,7 @@ fn process_checkpoint_stats(
             return;
         }
 
-        if *quiet_intervals < shrink_intervals {
+        if new_quiet_intervals < shrink_intervals {
             return;
         }
 
@@ -268,11 +275,18 @@ fn process_checkpoint_stats(
             return;
         }
 
+        // Update shared memory state for successful adjustment
+        shmem::update_state(|state| {
+            state.total_adjustments += 1;
+            state.last_adjustment_time = now_unix();
+            state.quiet_intervals = 0; // Reset after successful shrink
+        });
+
         // Log to history table (FR-004, FR-011)
         let timeout_secs = checkpoint_timeout().as_secs();
         let metadata = json!({
             "shrink_factor": shrink_factor,
-            "quiet_intervals": *quiet_intervals,
+            "quiet_intervals": new_quiet_intervals,
             "calculated_size_mb": new_size
         });
 
@@ -289,9 +303,6 @@ fn process_checkpoint_stats(
         }) {
             pgrx::warning!("pg_walrus: failed to log history: {}", e);
         }
-
-        // Reset quiet intervals after successful shrink
-        *quiet_intervals = 0;
 
         // Send SIGHUP to postmaster to apply configuration
         send_sighup_to_postmaster();
@@ -329,13 +340,8 @@ pub extern "C-unwind" fn walrus_worker_main(_arg: pg_sys::Datum) {
 
     pgrx::log!("pg_walrus worker started");
 
-    // Worker state
+    // Worker state - only first_iteration is local, rest is in shared memory
     let mut first_iteration = true;
-    let mut prev_requested: i64 = 0;
-    // quiet_intervals tracks consecutive intervals with delta < threshold.
-    // Initialized to 0 on worker start. This is ephemeral state that resets
-    // when PostgreSQL restarts (by design - sustained quiet period must be fresh).
-    let mut quiet_intervals: i32 = 0;
 
     // Main loop: wake every checkpoint_timeout, process stats, repeat
     while BackgroundWorker::wait_latch(Some(checkpoint_timeout())) {
@@ -362,11 +368,8 @@ pub extern "C-unwind" fn walrus_worker_main(_arg: pg_sys::Datum) {
         }
 
         // Process checkpoint statistics and potentially resize or shrink
-        process_checkpoint_stats(
-            &mut first_iteration,
-            &mut prev_requested,
-            &mut quiet_intervals,
-        );
+        // State (quiet_intervals, prev_requested, etc.) is managed in shared memory
+        process_checkpoint_stats(&mut first_iteration);
 
         // Cleanup old history records (FR-009)
         if let Err(e) = BackgroundWorker::transaction(history::cleanup_old_history) {
@@ -378,9 +381,10 @@ pub extern "C-unwind" fn walrus_worker_main(_arg: pg_sys::Datum) {
 }
 
 // Pure Rust unit tests (do not require PostgreSQL)
+// These tests verify the algorithm functions imported from the algorithm module.
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use crate::algorithm::{calculate_new_size, calculate_shrink_size};
 
     // =========================================================================
     // Tests for calculate_new_size (grow)
