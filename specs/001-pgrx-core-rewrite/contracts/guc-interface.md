@@ -146,8 +146,20 @@ WHERE name LIKE 'walrus.%';
 | PostgreSQL Parameter | pg_walrus Interaction |
 |---------------------|----------------------|
 | `max_wal_size` | Modified by pg_walrus via ALTER SYSTEM |
-| `checkpoint_timeout` | Used as wake interval for background worker |
+| `checkpoint_timeout` | Used as wake interval (via extern C - see R8) |
 | `shared_preload_libraries` | Must include `pg_walrus` for extension to load |
+
+### Accessing checkpoint_timeout
+
+**Important**: pgrx does not expose `pg_sys::CheckPointTimeout`. The variable must be declared via extern C block:
+
+```rust
+extern "C" {
+    static CheckPointTimeout: std::ffi::c_int;
+}
+```
+
+See research.md R8 for full implementation details.
 
 **Constraints**:
 - `walrus.max` should be less than available WAL storage

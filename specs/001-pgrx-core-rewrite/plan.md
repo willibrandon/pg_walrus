@@ -18,6 +18,7 @@ Rewrite the pg_walsizer PostgreSQL extension in Rust using pgrx. The extension m
 **Performance Goals**: Background worker wake cycle matching checkpoint_timeout (~5 minutes default), sub-second configuration changes
 **Constraints**: Memory overhead <1MB, no blocking of PostgreSQL operations, must handle SIGHUP/SIGTERM signals
 **Scale/Scope**: Single background worker per PostgreSQL instance
+**Technical Notes**: `CheckPointTimeout` accessed via extern C declaration (pgrx does not expose - see research.md R8)
 
 ## Constitution Check
 
@@ -43,10 +44,10 @@ Rewrite the pg_walsizer PostgreSQL extension in Rust using pgrx. The extension m
 | Principle | Status | Verification |
 |-----------|--------|--------------|
 | I. No Task Deferral | PASS | All edge cases from spec.md addressed in data-model.md |
-| II. FFI Boundary Safety | PASS | research.md confirms #[pg_guard] on _PG_init, worker_main |
+| II. FFI Boundary Safety | PASS | research.md confirms #[pg_guard] on _PG_init, worker_main; R8 documents extern C for CheckPointTimeout |
 | III. Memory Management | PASS | Node allocation via pg_sys::makeNode(), list_free() for cleanup |
 | IV. Background Worker Patterns | PASS | contracts/background-worker.md defines complete lifecycle |
-| V. GUC Configuration | PASS | contracts/guc-interface.md defines all three parameters |
+| V. GUC Configuration | PASS | contracts/guc-interface.md defines all three parameters; R8 documents checkpoint_timeout access |
 | VI. SPI & Database Access | N/A | Using raw pg_sys transaction commands, not SPI |
 | VII. Version Compatibility | PASS | research.md R2 confirms #[cfg] for num_requested vs requested_checkpoints |
 | VIII. Test Discipline | PASS | quickstart.md includes verification commands |

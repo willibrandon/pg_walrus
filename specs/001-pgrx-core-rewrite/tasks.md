@@ -53,7 +53,7 @@
 
 - [ ] T007 [P] [US1] Implement get_requested_checkpoints() in src/stats.rs with version-specific field access using #[cfg(any(feature = "pg15", feature = "pg16"))] for requested_checkpoints and #[cfg(any(feature = "pg17", feature = "pg18"))] for num_requested per research.md R2
 - [ ] T008 [P] [US1] Implement get_current_max_wal_size() in src/stats.rs returning pg_sys::max_wal_size_mb per research.md R4
-- [ ] T009 [P] [US1] Implement get_checkpoint_timeout() in src/stats.rs returning Duration from pg_sys::CheckPointTimeout
+- [ ] T009 [P] [US1] Implement checkpoint_timeout() in src/stats.rs: declare extern C block for CheckPointTimeout (not exposed by pgrx), return Duration per research.md R8
 - [ ] T010 [P] [US1] Implement alter_max_wal_size() in src/config.rs constructing AlterSystemStmt, VariableSetStmt, A_Const nodes for max_wal_size per research.md R1
 - [ ] T011 [US1] Implement execute_alter_system() in src/config.rs with ResourceOwner setup, StartTransactionCommand, AlterSystemSetConfigFile, CommitTransactionCommand per research.md R7
 - [ ] T012 [US1] Implement SUPPRESS_NEXT_SIGHUP atomic flag and send_sighup_to_postmaster() in src/worker.rs using libc::kill() per research.md R3

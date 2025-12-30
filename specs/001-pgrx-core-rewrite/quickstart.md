@@ -219,3 +219,19 @@ ALTER SYSTEM RESET shared_preload_libraries;
 rm $(pg_config --sharedir)/extension/pg_walrus*
 rm $(pg_config --pkglibdir)/pg_walrus*
 ```
+
+## Technical Notes
+
+### CheckPointTimeout Access
+
+pg_walrus uses PostgreSQL's `checkpoint_timeout` GUC to determine the background worker's wake interval. This variable is accessed via an extern C declaration rather than through pgrx's standard `pg_sys` bindings.
+
+**Why?** pgrx's bindgen does not include `postmaster/bgwriter.h` in its header list, so `pg_sys::CheckPointTimeout` is not available. The variable is declared directly:
+
+```rust
+extern "C" {
+    static CheckPointTimeout: std::ffi::c_int;
+}
+```
+
+This is safe because PostgreSQL exports `CheckPointTimeout` with `PGDLLIMPORT` and guarantees it is initialized before extension code runs. See `research.md R8` for full details.

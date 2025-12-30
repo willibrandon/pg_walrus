@@ -134,3 +134,7 @@ A database administrator operates PostgreSQL clusters running versions 15, 16, 1
 - The `checkpoint_timeout` GUC is set to a reasonable value (default: 5 minutes) and is not modified to extremely short intervals.
 - The underlying WAL storage device has sufficient capacity to accommodate growth up to `walrus.max`.
 - pgrx version 0.16 or compatible is used for building the extension.
+
+## Implementation Notes
+
+- **CheckPointTimeout access**: pgrx does not expose `pg_sys::CheckPointTimeout` (bindgen does not include `postmaster/bgwriter.h`). Access via extern C declaration is required. See research.md R8 for the definitive solution.

@@ -16,7 +16,7 @@ pg_walrus runs a single background worker process that monitors checkpoint activ
 | Library | `pg_walrus` |
 | Function | `walrus_worker_main` |
 | Start Time | `BgWorkerStart_RecoveryFinished` |
-| Restart Time | `checkpoint_timeout` |
+| Restart Time | `checkpoint_timeout` (via extern C - see R8) |
 | Flags | `BGWORKER_SHMEM_ACCESS` |
 
 ## Lifecycle
@@ -34,8 +34,10 @@ pg_walrus runs a single background worker process that monitors checkpoint activ
 
 ### Main Loop
 
+**Note**: `checkpoint_timeout` is accessed via extern C declaration (pgrx does not expose `pg_sys::CheckPointTimeout`). See research.md R8.
+
 ```text
-WHILE wait_latch(checkpoint_timeout) returns true:
+WHILE wait_latch(checkpoint_timeout()) returns true:
     IF self-triggered SIGHUP flag is set:
         Clear flag and CONTINUE
 

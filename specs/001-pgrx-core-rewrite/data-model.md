@@ -131,12 +131,43 @@ pg_walrus is a PostgreSQL extension with no persistent storage. All state is hel
 
 ---
 
+## External PostgreSQL Variables (Not in pgrx)
+
+### E5: CheckPointTimeout
+
+**Purpose**: PostgreSQL's checkpoint timeout interval, used as the background worker's wake interval.
+
+**Access**: Via extern C declaration (pgrx does not expose this variable - see research.md R8)
+
+```rust
+extern "C" {
+    static CheckPointTimeout: std::ffi::c_int;
+}
+
+fn checkpoint_timeout() -> Duration {
+    Duration::from_secs(unsafe { CheckPointTimeout } as u64)
+}
+```
+
+| Property | Value |
+|----------|-------|
+| Type | `c_int` (i32) |
+| Unit | Seconds |
+| Default | 300 (5 minutes) |
+| Range | 30 - 86400 |
+| Declared in | `src/include/postmaster/bgwriter.h` |
+| Defined in | `src/backend/postmaster/checkpointer.c` |
+
+**Why extern C?**: PostgreSQL exports this symbol with `PGDLLIMPORT`, but pgrx's bindgen headers don't include `postmaster/bgwriter.h`, so we declare it ourselves.
+
+---
+
 ## Data Flow
 
 ### Monitoring Cycle
 
 ```text
-1. wait_latch(checkpoint_timeout)
+1. wait_latch(checkpoint_timeout())  ← extern C access to CheckPointTimeout
 2. Check SUPPRESS_NEXT_SIGHUP flag → skip if self-triggered
 3. Check walrus.enable → skip if disabled
 4. Check first_iteration → establish baseline on first run

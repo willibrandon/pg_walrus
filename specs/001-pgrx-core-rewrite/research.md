@@ -222,8 +222,8 @@ Use `BackgroundWorkerBuilder` with standard pgrx patterns, reading `checkpoint_t
 
 ### Rationale
 - pgrx `BackgroundWorkerBuilder` abstracts low-level bgworker registration
-- `checkpoint_timeout` available as `pg_sys::CheckPointTimeout` in seconds
 - `BgWorkerStart_RecoveryFinished` ensures worker only runs on primary
+- `checkpoint_timeout` accessed via extern C declaration (see R8)
 
 ### Implementation Pattern
 
@@ -260,7 +260,7 @@ pub extern "C-unwind" fn walrus_worker_main(_arg: pg_sys::Datum) {
     let mut first_iteration = true;
     let mut prev_requested: i64 = 0;
 
-    while BackgroundWorker::wait_latch(Some(get_checkpoint_timeout())) {
+    while BackgroundWorker::wait_latch(Some(checkpoint_timeout())) {
         if should_skip_iteration() {
             continue;
         }
@@ -278,10 +278,6 @@ pub extern "C-unwind" fn walrus_worker_main(_arg: pg_sys::Datum) {
     }
 
     pgrx::log!("pg_walrus worker shutting down");
-}
-
-fn get_checkpoint_timeout() -> Duration {
-    Duration::from_secs(unsafe { pg_sys::CheckPointTimeout as u64 })
 }
 ```
 
@@ -325,6 +321,92 @@ fn execute_alter_system(new_value: i32) -> Result<(), &'static str> {
 
 ---
 
+## R8: Accessing CheckPointTimeout GUC Variable
+
+### Decision
+Declare `CheckPointTimeout` directly via extern C block, since pgrx does not expose this PostgreSQL global variable.
+
+### Root Cause
+- pgrx generates bindings via bindgen from include files in `pgrx-pg-sys/include/pgXX.h`
+- These headers do NOT include `postmaster/bgwriter.h` (where `CheckPointTimeout` is declared)
+- However, they DO include `access/xlog_internal.h` → `access/xlog.h` (where `CheckPointSegments` is declared)
+- That's why `pg_sys::CheckPointSegments` exists but `pg_sys::CheckPointTimeout` does not
+
+### Implementation Pattern
+
+```rust
+// In src/stats.rs or src/guc.rs
+
+use std::ffi::c_int;
+use std::time::Duration;
+
+/// Direct access to PostgreSQL's checkpoint-related GUC variables.
+/// These are exported by PostgreSQL with PGDLLIMPORT but not included
+/// in pgrx's default bindgen headers.
+extern "C" {
+    /// Checkpoint timeout in seconds (default 300, range 30-86400).
+    /// Defined in src/backend/postmaster/checkpointer.c
+    /// Declared in src/include/postmaster/bgwriter.h
+    static CheckPointTimeout: c_int;
+
+    /// Checkpoint warning threshold in seconds (default 30).
+    static CheckPointWarning: c_int;
+
+    /// Checkpoint completion target (0.0-1.0, default 0.9).
+    static CheckPointCompletionTarget: f64;
+}
+
+/// Returns the checkpoint_timeout GUC value in seconds.
+#[inline]
+pub fn checkpoint_timeout_secs() -> i32 {
+    // SAFETY: CheckPointTimeout is exported by PostgreSQL with PGDLLIMPORT,
+    // guaranteed to exist and be initialized before any extension code runs.
+    unsafe { CheckPointTimeout }
+}
+
+/// Returns the checkpoint_timeout as a Duration for use with WaitLatch.
+#[inline]
+pub fn checkpoint_timeout() -> Duration {
+    Duration::from_secs(checkpoint_timeout_secs() as u64)
+}
+```
+
+### Rationale
+- **Zero overhead**: Direct memory read, no function calls or string parsing
+- **Always available**: No transaction context or SPI required (works in `_PG_init`)
+- **Type-safe**: Returns native `i32`, no string parsing needed
+- **Stable API**: `CheckPointTimeout` is a public PostgreSQL symbol with `PGDLLIMPORT`
+- **Dynamically updated**: Value changes automatically when PostgreSQL processes SIGHUP
+
+### Alternatives Considered
+
+| Alternative | Reason Rejected |
+|-------------|-----------------|
+| `pg_sys::GetConfigOption("checkpoint_timeout")` | Requires string parsing, function call overhead |
+| `Spi::get_one("SELECT current_setting('checkpoint_timeout')::int")` | Requires active transaction, high overhead, not available in `_PG_init` |
+| Hardcoded default (300 seconds) | Does not respect administrator's `checkpoint_timeout` setting |
+| Submit PR to pgrx to add header | Upstream dependency, uncertain timeline |
+
+### Verification
+
+The extern declaration is safe because:
+
+1. `CheckPointTimeout` is declared in `src/include/postmaster/bgwriter.h`:
+   ```c
+   extern PGDLLIMPORT int CheckPointTimeout;
+   ```
+
+2. `PGDLLIMPORT` ensures the symbol is exported from the PostgreSQL shared library
+
+3. The variable is initialized in `src/backend/postmaster/checkpointer.c`:
+   ```c
+   int CheckPointTimeout = 300;
+   ```
+
+4. PostgreSQL guarantees this variable exists and is initialized before any extension `_PG_init` runs
+
+---
+
 ## Summary
 
 | Topic | Decision | Key API |
@@ -336,5 +418,6 @@ fn execute_alter_system(new_value: i32) -> Result<(), &'static str> {
 | GUC Registration | pgrx GucRegistry | `GucSetting`, `GucRegistry` |
 | Background Worker | pgrx BackgroundWorkerBuilder | `BackgroundWorker::wait_latch()` |
 | Transactions | Raw pg_sys transaction commands | `StartTransactionCommand()` |
+| CheckPointTimeout | extern C declaration | `static CheckPointTimeout: c_int` |
 
 All technical unknowns resolved. Ready for Phase 1 design artifacts.
