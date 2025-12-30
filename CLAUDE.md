@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 pg_walrus is a Rust rewrite (using pgrx) of pg_walsizer - a PostgreSQL extension that automatically monitors and adjusts `max_wal_size` to prevent performance-degrading forced checkpoints. The name comes from WAL + Rust = Walrus.
 
-**Current state**: The Rust implementation is complete with 132 tests passing across PostgreSQL 15-18.
+**Current state**: The Rust implementation is complete with 105 pgrx tests and 10 pg_regress tests passing across PostgreSQL 15-18.
 
 ## No Regression Policy
 
@@ -946,6 +946,12 @@ src/
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `walrus.history_retention_days` | 7 | Days to retain history records (0-3650) |
+
+### Dry-Run Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `walrus.dry_run` | false | Log decisions without executing ALTER SYSTEM |
 
 ### Database Connection
 

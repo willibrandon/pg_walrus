@@ -8,6 +8,7 @@ ORDER BY name;
              name              | setting  | unit |                           short_desc                           
 -------------------------------+----------+------+----------------------------------------------------------------
  walrus.database               | postgres |      | Database for pg_walrus metadata and history table.
+ walrus.dry_run                | off      |      | Enable dry-run mode (log decisions without applying).
  walrus.enable                 | on       |      | Enable automatic resizing of max_wal_size parameter.
  walrus.history_retention_days | 7        |      | Days to retain history records before automatic cleanup.
  walrus.max                    | 4096     | MB   | Maximum size for max_wal_size that pg_walrus will not exceed.
@@ -16,7 +17,7 @@ ORDER BY name;
  walrus.shrink_factor          | 0.75     |      | Multiplication factor when shrinking max_wal_size.
  walrus.shrink_intervals       | 5        |      | Quiet checkpoint intervals before triggering shrink.
  walrus.threshold              | 2        |      | Forced checkpoints per timeout before increasing max_wal_size.
-(9 rows)
+(10 rows)
 
 -- Check GUC context is SIGHUP (allows runtime changes via ALTER SYSTEM)
 SELECT name, context
@@ -26,6 +27,7 @@ ORDER BY name;
              name              |  context   
 -------------------------------+------------
  walrus.database               | postmaster
+ walrus.dry_run                | sighup
  walrus.enable                 | sighup
  walrus.history_retention_days | sighup
  walrus.max                    | sighup
@@ -34,5 +36,5 @@ ORDER BY name;
  walrus.shrink_factor          | sighup
  walrus.shrink_intervals       | sighup
  walrus.threshold              | sighup
-(9 rows)
+(10 rows)
 

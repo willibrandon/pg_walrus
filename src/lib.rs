@@ -34,7 +34,7 @@ CREATE SCHEMA IF NOT EXISTS walrus;
 CREATE TABLE walrus.history (
     id BIGSERIAL PRIMARY KEY,
     timestamp TIMESTAMPTZ NOT NULL DEFAULT now(),
-    action TEXT NOT NULL CHECK (action IN ('increase', 'decrease', 'capped')),
+    action TEXT NOT NULL CHECK (action IN ('increase', 'decrease', 'capped', 'dry_run')),
     old_size_mb INTEGER NOT NULL CHECK (old_size_mb > 0),
     new_size_mb INTEGER NOT NULL CHECK (new_size_mb > 0),
     forced_checkpoints BIGINT NOT NULL CHECK (forced_checkpoints >= 0),
@@ -50,7 +50,7 @@ CREATE INDEX walrus_history_timestamp_idx ON walrus.history (timestamp);
 COMMENT ON TABLE walrus.history IS 'Audit trail of pg_walrus sizing decisions';
 COMMENT ON COLUMN walrus.history.id IS 'Unique identifier for each history record';
 COMMENT ON COLUMN walrus.history.timestamp IS 'When the sizing decision was made';
-COMMENT ON COLUMN walrus.history.action IS 'Decision type: increase, decrease, or capped';
+COMMENT ON COLUMN walrus.history.action IS 'Decision type: increase, decrease, capped, or dry_run';
 COMMENT ON COLUMN walrus.history.old_size_mb IS 'max_wal_size before the change (in MB)';
 COMMENT ON COLUMN walrus.history.new_size_mb IS 'max_wal_size after the change (in MB)';
 COMMENT ON COLUMN walrus.history.forced_checkpoints IS 'Checkpoint count at decision time';

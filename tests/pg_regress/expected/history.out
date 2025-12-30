@@ -51,9 +51,9 @@ SELECT conname, pg_get_constraintdef(oid)
 FROM pg_constraint
 WHERE conrelid = 'walrus.history'::regclass AND contype = 'c'
 ORDER BY conname;
-               conname                |                                pg_get_constraintdef                                
---------------------------------------+------------------------------------------------------------------------------------
- history_action_check                 | CHECK ((action = ANY (ARRAY['increase'::text, 'decrease'::text, 'capped'::text])))
+               conname                |                                        pg_get_constraintdef                                         
+--------------------------------------+-----------------------------------------------------------------------------------------------------
+ history_action_check                 | CHECK ((action = ANY (ARRAY['increase'::text, 'decrease'::text, 'capped'::text, 'dry_run'::text])))
  history_checkpoint_timeout_sec_check | CHECK ((checkpoint_timeout_sec > 0))
  history_forced_checkpoints_check     | CHECK ((forced_checkpoints >= 0))
  history_new_size_mb_check            | CHECK ((new_size_mb > 0))

@@ -37,9 +37,9 @@ LOG:  parameter "max_wal_size" changed to "2560"
 - **Auto-Shrink**: Automatically reduce `max_wal_size` after sustained periods of low checkpoint activity
 - **History Table**: Full audit trail of all sizing adjustments in `walrus.history`
 - **SQL Functions**: Query status, history, and recommendations; trigger immediate analysis
+- **Dry-Run Mode**: Test behavior without making changes (`walrus.dry_run = true`)
 
 ### Planned
-- **Dry-Run Mode**: Test behavior without making changes
 - **Rate Limiting**: Prevent thrashing on unstable workloads
 - **NOTIFY Events**: Real-time notifications on adjustments
 - **Prometheus Metrics**: Standard monitoring integration
@@ -141,6 +141,12 @@ pg_ctl restart -D $PGDATA
 |-----------|---------|-------------|
 | `walrus.history_retention_days` | `7` | Days to retain history records (0-3650) |
 
+### Dry-Run Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `walrus.dry_run` | `false` | Log decisions without executing ALTER SYSTEM |
+
 All parameters require `SIGHUP` to take effect (no restart needed).
 
 ### Database Connection
@@ -199,6 +205,48 @@ Old history records are automatically deleted based on `walrus.history_retention
 SELECT walrus.cleanup_history();
 -- Returns: number of deleted records
 ```
+
+## Dry-Run Mode
+
+Dry-run mode allows you to test pg_walrus behavior without making actual configuration changes. When enabled, the extension logs what decisions WOULD be made and records them to the history table with `action = 'dry_run'`.
+
+### Enabling Dry-Run Mode
+
+```sql
+-- Enable dry-run mode
+ALTER SYSTEM SET walrus.dry_run = true;
+SELECT pg_reload_conf();
+
+-- Verify it's enabled
+SHOW walrus.dry_run;
+```
+
+### Log Output
+
+When dry-run is enabled, sizing decisions appear in the PostgreSQL log with a `[DRY-RUN]` prefix:
+
+```
+LOG:  pg_walrus [DRY-RUN]: would change max_wal_size from 1024 MB to 2048 MB (threshold exceeded)
+LOG:  pg_walrus [DRY-RUN]: would change max_wal_size from 4096 MB to 3072 MB (sustained low activity)
+```
+
+### History Records
+
+Dry-run decisions are recorded in `walrus.history` with `action = 'dry_run'` and metadata indicating what action would have been taken:
+
+```sql
+SELECT timestamp, action, old_size_mb, new_size_mb,
+       metadata->>'would_apply' AS would_apply
+FROM walrus.history
+WHERE action = 'dry_run'
+ORDER BY timestamp DESC;
+```
+
+### Use Cases
+
+1. **Pre-production validation**: Test the extension in a staging environment before enabling in production
+2. **Parameter tuning**: Experiment with `walrus.threshold` and `walrus.shrink_factor` values
+3. **Compliance auditing**: Generate a complete audit trail of all sizing decisions without system impact
 
 ### Example
 

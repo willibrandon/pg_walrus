@@ -68,6 +68,16 @@ pub static WALRUS_MIN_SIZE: GucSetting<i32> = GucSetting::<i32>::new(1024);
 pub static WALRUS_HISTORY_RETENTION_DAYS: GucSetting<i32> = GucSetting::<i32>::new(7);
 
 // =========================================================================
+// Dry-Run GUC Parameters
+// =========================================================================
+
+/// Enable dry-run mode for testing without making configuration changes.
+/// When enabled, pg_walrus logs what sizing decisions WOULD be made
+/// but does not execute ALTER SYSTEM or send SIGHUP.
+/// Default: false
+pub static WALRUS_DRY_RUN: GucSetting<bool> = GucSetting::<bool>::new(false);
+
+// =========================================================================
 // Database GUC Parameter (Postmaster context - requires restart)
 // =========================================================================
 
@@ -175,6 +185,19 @@ pub fn register_gucs() {
         &WALRUS_HISTORY_RETENTION_DAYS,
         0,
         3650,
+        GucContext::Sighup,
+        GucFlags::default(),
+    );
+
+    // =========================================================================
+    // Dry-Run GUCs
+    // =========================================================================
+
+    GucRegistry::define_bool_guc(
+        c"walrus.dry_run",
+        c"Enable dry-run mode (log decisions without applying).",
+        c"When enabled, pg_walrus logs sizing decisions but does not execute ALTER SYSTEM.",
+        &WALRUS_DRY_RUN,
         GucContext::Sighup,
         GucFlags::default(),
     );

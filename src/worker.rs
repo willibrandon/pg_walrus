@@ -11,8 +11,8 @@
 use crate::algorithm::{calculate_new_size, calculate_shrink_size};
 use crate::config::execute_alter_system;
 use crate::guc::{
-    WALRUS_ENABLE, WALRUS_MAX, WALRUS_MIN_SIZE, WALRUS_SHRINK_ENABLE, WALRUS_SHRINK_FACTOR,
-    WALRUS_SHRINK_INTERVALS, WALRUS_THRESHOLD,
+    WALRUS_DRY_RUN, WALRUS_ENABLE, WALRUS_MAX, WALRUS_MIN_SIZE, WALRUS_SHRINK_ENABLE,
+    WALRUS_SHRINK_FACTOR, WALRUS_SHRINK_INTERVALS, WALRUS_THRESHOLD,
 };
 use crate::history;
 use crate::shmem::{self, now_unix};
@@ -143,8 +143,67 @@ fn process_checkpoint_stats(first_iteration: &mut bool) {
             return;
         }
 
-        // Log the resize decision
+        // Determine reason text based on capped status
+        let reason_text = if is_capped {
+            "capped at walrus.max"
+        } else {
+            "threshold exceeded"
+        };
+
         let timeout_secs = checkpoint_timeout().as_secs();
+
+        // DRY-RUN CHECK: If dry-run enabled, log what would happen and insert history,
+        // but skip ALTER SYSTEM and SIGHUP. Mode change takes effect on next iteration.
+        if WALRUS_DRY_RUN.get() {
+            // Log dry-run message with [DRY-RUN] prefix
+            pgrx::log!(
+                "pg_walrus [DRY-RUN]: would change max_wal_size from {} MB to {} MB ({})",
+                current_size,
+                new_size,
+                reason_text
+            );
+
+            // Build metadata with dry-run fields
+            let would_apply = if is_capped { "capped" } else { "increase" };
+            let metadata = if is_capped {
+                json!({
+                    "dry_run": true,
+                    "would_apply": would_apply,
+                    "delta": delta,
+                    "multiplier": delta + 1,
+                    "calculated_size_mb": calculated_size,
+                    "walrus_max_mb": max_allowed
+                })
+            } else {
+                json!({
+                    "dry_run": true,
+                    "would_apply": would_apply,
+                    "delta": delta,
+                    "multiplier": delta + 1,
+                    "calculated_size_mb": calculated_size
+                })
+            };
+
+            // Insert history with action='dry_run'
+            if let Err(e) = BackgroundWorker::transaction(|| {
+                history::insert_history_record(
+                    "dry_run",
+                    current_size,
+                    new_size,
+                    current_requested,
+                    timeout_secs as i32,
+                    Some(reason_text),
+                    Some(metadata.clone()),
+                )
+            }) {
+                pgrx::warning!("pg_walrus: failed to log dry-run history: {}", e);
+            }
+
+            // Skip ALTER SYSTEM and SIGHUP in dry-run mode
+            return;
+        }
+
+        // Log the resize decision (normal mode)
         pgrx::log!(
             "pg_walrus: detected {} forced checkpoints over {} seconds",
             delta,
@@ -259,7 +318,52 @@ fn process_checkpoint_stats(first_iteration: &mut bool) {
             return;
         }
 
-        // Log the shrink decision
+        let timeout_secs = checkpoint_timeout().as_secs();
+
+        // DRY-RUN CHECK: If dry-run enabled, log what would happen and insert history,
+        // but skip ALTER SYSTEM and SIGHUP. Mode change takes effect on next iteration.
+        if WALRUS_DRY_RUN.get() {
+            // Log dry-run message with [DRY-RUN] prefix
+            pgrx::log!(
+                "pg_walrus [DRY-RUN]: would change max_wal_size from {} MB to {} MB (sustained low activity)",
+                current_size,
+                new_size
+            );
+
+            // Build metadata with dry-run fields
+            let metadata = json!({
+                "dry_run": true,
+                "would_apply": "decrease",
+                "shrink_factor": shrink_factor,
+                "quiet_intervals": new_quiet_intervals,
+                "calculated_size_mb": new_size
+            });
+
+            // Insert history with action='dry_run'
+            if let Err(e) = BackgroundWorker::transaction(|| {
+                history::insert_history_record(
+                    "dry_run",
+                    current_size,
+                    new_size,
+                    current_requested,
+                    timeout_secs as i32,
+                    Some("sustained low activity"),
+                    Some(metadata.clone()),
+                )
+            }) {
+                pgrx::warning!("pg_walrus: failed to log dry-run history: {}", e);
+            }
+
+            // Reset quiet_intervals after dry-run shrink decision (algorithm state must update)
+            shmem::update_state(|state| {
+                state.quiet_intervals = 0;
+            });
+
+            // Skip ALTER SYSTEM and SIGHUP in dry-run mode
+            return;
+        }
+
+        // Log the shrink decision (normal mode)
         pgrx::log!(
             "pg_walrus: shrinking max_wal_size from {} MB to {} MB",
             current_size,
@@ -283,7 +387,6 @@ fn process_checkpoint_stats(first_iteration: &mut bool) {
         });
 
         // Log to history table (FR-004, FR-011)
-        let timeout_secs = checkpoint_timeout().as_secs();
         let metadata = json!({
             "shrink_factor": shrink_factor,
             "quiet_intervals": new_quiet_intervals,
