@@ -53,6 +53,50 @@ When running `/speckit.analyze` or any analysis command:
 - "Edge cases require implementation. Creating tasks now."
 - "BLOCKER: [specific conflicting requirement]. Need decision: [specific question]"
 
+## Test Failure Protocol
+
+When a test fails, the ONLY acceptable responses are:
+
+**ABSOLUTE PROHIBITION:**
+- "I can make the test more lenient"
+- "We could relax the assertion"
+- "This test is too strict"
+- "Let me adjust the test expectations"
+- "For now, let's just skip this test case"
+- "This is flaky"
+- "This is tricky"
+- Any suggestion to weaken, skip, or bypass tests
+
+**ROOT CAUSE ANALYSIS REQUIRED:**
+When a test fails, you MUST:
+1. Identify the exact code causing the failure
+2. Trace execution to find the root cause
+3. Fix the implementation, never the test
+4. Re-run tests to verify the fix
+5. If the test uncovers a design flaw, state `BLOCKER: [specific design issue]` and request clarification
+
+**Test Integrity Non-Negotiable:**
+- Tests define the specification. Implementation must meet tests.
+- A test failure indicates a gap between specification and implementation.
+- Specification gaps must be resolved through code changes, never through relaxed tests.
+- Tests are the contract. The contract never changes to accommodate weak implementations.
+
+**When Tests Fail:**
+- Ask: "What is the actual vs expected behavior?"
+- Ask: "Which code path causes this difference?"
+- Ask: "What must change in the implementation?"
+- Do NOT ask: "Should we relax this test?"
+
+**Red Flag Phrases (NEVER USE):**
+- "We can relax this"
+- "Make it more lenient"
+- "For now, let's accept"
+- "We can skip this case"
+- "This test is overly strict"
+- "Weaken the assertions"
+- "Adjust expectations"
+- "Be more lenient"
+
 ## Build Commands
 
 ### Original C Extension (pg_walsizer)
