@@ -1,6 +1,6 @@
 ---
 description: Generate an actionable, dependency-ordered tasks.md for the feature based on available design artifacts.
-handoffs: 
+handoffs:
   - label: Analyze For Consistency
     agent: speckit.analyze
     prompt: Run a project analysis for consistency
@@ -86,7 +86,7 @@ Every task MUST strictly follow this format:
 4. **[Story] label**: REQUIRED for user story phase tasks only
    - Format: [US1], [US2], [US3], etc. (maps to user stories from spec.md)
    - Setup phase: NO story label
-   - Foundational phase: NO story label  
+   - Foundational phase: NO story label
    - User Story phases: MUST have story label
    - Polish phase: NO story label
 5. **Description**: Clear action with exact file path
@@ -135,3 +135,10 @@ Every task MUST strictly follow this format:
   - Within each story: Tests (if requested) → Models → Services → Endpoints → Integration
   - Each phase should be a complete, independently testable increment
 - **Final Phase**: Polish & Cross-Cutting Concerns
+
+## Key Rules
+
+- Each task MUST be complete and actionable - no partial implementations
+- Edge cases from spec.md MUST have corresponding tasks - they are requirements, not optional
+- Tasks MUST include specific file paths for all code changes
+- Do NOT generate tasks with vague descriptions like "implement remaining features"

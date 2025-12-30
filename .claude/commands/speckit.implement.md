@@ -2,6 +2,30 @@
 description: Execute the implementation plan by processing and executing all tasks defined in tasks.md
 ---
 
+## Constitutional Compliance (Constitution VI)
+
+This command is bound by the No Task Deferral principle. The following are PROHIBITED:
+
+**In generated code:**
+- Code markers: `TODO`, `FIXME`, `PLACEHOLDER`, `HACK`, `XXX`, `STUB`, `TBD`, `PENDING`
+- Incomplete implementations: Functions that throw "not implemented" without full logic
+- Partial implementations: Missing error handling, edge cases, or validation
+
+**In comments and output:**
+- Hedging: "you might want to...", "consider adding...", "it would be good to..."
+- Future promises: "we can optimize later", "phase 2 work", "future enhancement"
+- Responsibility shifting: "you'll need to add...", "don't forget to..."
+
+**When blocked:**
+- State `BLOCKER: [specific issue]` and request a specific decision
+- Do NOT use "suggest next steps" or defer to future work
+- Do NOT halt and leave tasks incomplete without explicit BLOCKER escalation
+
+**Completion requirement:**
+- Each task MUST be fully implemented before marking complete
+- Edge cases listed in spec.md MUST be handled, not deferred
+- Error handling MUST be implemented, not stubbed
+
 ## User Input
 
 ```text
@@ -105,7 +129,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 6. Execute implementation following the task plan:
    - **Phase-by-phase execution**: Complete each phase before moving to the next
-   - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together  
+   - **Respect dependencies**: Run sequential tasks in order, parallel tasks [P] can run together
    - **Follow TDD approach**: Execute test tasks before their corresponding implementation tasks
    - **File-based coordination**: Tasks affecting the same files must run sequentially
    - **Validation checkpoints**: Verify each phase completion before proceeding
@@ -119,17 +143,20 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 8. Progress tracking and error handling:
    - Report progress after each completed task
-   - Halt execution if any non-parallel task fails
-   - For parallel tasks [P], continue with successful tasks, report failed ones
+   - If a task fails, attempt to fix the issue before proceeding
+   - For parallel tasks [P], continue with successful tasks, then return to fix failed ones
    - Provide clear error messages with context for debugging
-   - Suggest next steps if implementation cannot proceed
-   - **IMPORTANT** For completed tasks, make sure to mark the task off as [X] in the tasks file.
+   - If genuinely blocked (missing info, conflicting requirements), state `BLOCKER: [issue]` and request specific user decision
+   - **IMPORTANT** For completed tasks, mark the task as [X] in tasks.md immediately after completion
 
 9. Completion validation:
-   - Verify all required tasks are completed
+   - Verify ALL tasks are marked [X] complete - no exceptions
    - Check that implemented features match the original specification
    - Validate that tests pass and coverage meets requirements
    - Confirm the implementation follows the technical plan
+   - Verify no prohibited code markers exist in generated files
    - Report final status with summary of completed work
 
-Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, suggest running `/speckit.tasks` first to regenerate the task list.
+**CRITICAL**: Implementation is not complete until all tasks are marked [X]. Partial completion is not an acceptable end state.
+
+Note: This command assumes a complete task breakdown exists in tasks.md. If tasks are incomplete or missing, run `/speckit.tasks` first to generate the task list.

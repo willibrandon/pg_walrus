@@ -8,6 +8,28 @@ pg_walrus is a Rust rewrite (using pgrx) of pg_walsizer - a PostgreSQL extension
 
 **Current state**: The repository contains the original C implementation (pg_walsizer) and design documents for the Rust conversion. The Rust implementation has not yet been created.
 
+## No Deferral Policy
+
+This project enforces a strict no-deferral policy. When working on tasks:
+
+**PROHIBITED in code:**
+- `TODO`, `FIXME`, `PLACEHOLDER`, `HACK`, `XXX`, `STUB`, `TBD`, `PENDING`
+- Incomplete implementations or functions that throw "not implemented"
+- Missing error handling, edge cases, or validation
+
+**PROHIBITED in communication:**
+- Hedging: "you might want to...", "consider adding...", "it would be good to..."
+- Future promises: "we can optimize later", "phase 2 work", "future enhancement"
+- Responsibility shifting: "you'll need to add...", "don't forget to...", "make sure to..."
+- Scope deferral: "out of scope", "beyond scope", "not in scope"
+- Minimizing: "basic implementation", "simplified version", "for now"
+
+**REQUIRED behavior:**
+- Complete all assigned work in full. No exceptions.
+- Implement all edge cases and error handling immediately.
+- If genuinely blocked, state `BLOCKER: [specific issue]` and request a decision.
+- Each task must be fully implemented before marking complete.
+
 ## Build Commands
 
 ### Original C Extension (pg_walsizer)

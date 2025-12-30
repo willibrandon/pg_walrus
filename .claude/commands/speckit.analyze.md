@@ -16,9 +16,11 @@ Identify inconsistencies, duplications, ambiguities, and underspecified items ac
 
 ## Operating Constraints
 
-**STRICTLY READ-ONLY**: Do **not** modify any files. Output a structured analysis report. Offer an optional remediation plan (user must explicitly approve before any follow-up editing commands would be invoked manually).
+**STRICTLY READ-ONLY**: Do **not** modify any files. Output a structured analysis report with MANDATORY remediation tasks for all coverage gaps.
 
 **Constitution Authority**: The project constitution (`.specify/memory/constitution.md`) is **non-negotiable** within this analysis scope. Constitution conflicts are automatically CRITICAL and require adjustment of the spec, plan, or tasks—not dilution, reinterpretation, or silent ignoring of the principle. If a principle itself needs to change, that must occur in a separate, explicit constitution update outside `/speckit.analyze`.
+
+**NO DEFERRAL (Constitution VI.Analysis Mode Enforcement)**: Coverage gaps are NOT optional. If analysis finds requirements, edge cases, or acceptance criteria with zero task coverage, the report MUST include concrete task additions. Do NOT offer options like "add now vs defer vs remove". Do NOT say "user decision required" for coverage gaps. Edge cases in the spec ARE requirements—they MUST have task coverage.
 
 ## Execution Steps
 
@@ -116,9 +118,11 @@ Focus on high-signal findings. Limit to 50 findings total; aggregate remainder i
 Use this heuristic to prioritize findings:
 
 - **CRITICAL**: Violates constitution MUST, missing core spec artifact, or requirement with zero coverage that blocks baseline functionality
-- **HIGH**: Duplicate or conflicting requirement, ambiguous security/performance attribute, untestable acceptance criterion
-- **MEDIUM**: Terminology drift, missing non-functional task coverage, underspecified edge case
+- **HIGH**: Duplicate or conflicting requirement, ambiguous security/performance attribute, untestable acceptance criterion, **edge case with zero task coverage**
+- **MEDIUM**: Terminology drift, missing non-functional task coverage
 - **LOW**: Style/wording improvements, minor redundancy not affecting execution order
+
+**NOTE**: Edge cases are NOT "underspecified" or "optional"—they are requirements. Edge case coverage gaps are HIGH severity, not MEDIUM.
 
 ### 6. Produce Compact Analysis Report
 
@@ -154,13 +158,24 @@ Output a Markdown report (no file writes) with the following structure:
 
 At end of report, output a concise Next Actions block:
 
-- If CRITICAL issues exist: Recommend resolving before `/speckit.implement`
-- If only LOW/MEDIUM: User may proceed, but provide improvement suggestions
-- Provide explicit command suggestions: e.g., "Run /speckit.specify with refinement", "Run /speckit.plan to adjust architecture", "Manually edit tasks.md to add coverage for 'performance-metrics'"
+- If CRITICAL or HIGH issues exist (including edge case coverage gaps): List the specific tasks that MUST be added before `/speckit.implement`
+- If only LOW/MEDIUM: Proceed, noting minor improvements
+- Provide explicit task additions: e.g., "Adding T041: Handle existing package.json", "Adding T042: Handle missing write permissions"
 
-### 8. Offer Remediation
+**PROHIBITED**: Do NOT say "User may proceed without changes" if there are coverage gaps. Do NOT offer options to defer.
 
-Ask the user: "Would you like me to suggest concrete remediation edits for the top N issues?" (Do NOT apply them automatically.)
+### 8. Mandatory Remediation
+
+For each coverage gap found, output the concrete task to add:
+
+```
+COVERAGE GAP REMEDIATION:
+- Edge Case "existing package.json" → Add task: T041 [US1] Handle initialization when package.json already exists in target directory
+- Edge Case "write permissions" → Add task: T042 [US1] Handle missing write permissions with clear error message
+...
+```
+
+Then state: "These tasks are REQUIRED. Updating tasks.md now." (If read-only mode, state: "Run /speckit.tasks --append to add these tasks.")
 
 ## Operating Principles
 
