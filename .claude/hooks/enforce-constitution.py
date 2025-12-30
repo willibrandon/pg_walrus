@@ -98,6 +98,17 @@ def main():
         (r'\buse a\s+(reasonable\s+)?default\b', 'Minimization: "use a default"'),
         (r'\ba simple\s+approach\b', 'Minimization: "a simple approach"'),
 
+        # REMOVAL/DELETION DEFERRAL - User explicitly requested these patterns
+        (r'\b(tests?|code|function|feature|implementation)\s+(need|should|can|could|must)\s+(to\s+)?be\s+removed\b', 'Removal deferral: "X need/should be removed"'),
+        (r'\bremove\s+(the\s+)?(tests?|code|functionality|feature)\b', 'Removal deferral: "remove the X"'),
+        (r'\bshould\s+be\s+removed\b', 'Removal deferral: "should be removed"'),
+        (r'\bcan\'t\s+test\b', 'Removal deferral: "can\'t test"'),
+        (r'\bcannot\s+test\b', 'Removal deferral: "cannot test"'),
+        (r'\bwe\s+can\'t\b', 'Removal deferral: "we can\'t"'),
+        (r'\bcan\'t\s+be\s+(done|tested|implemented)\b', 'Removal deferral: "can\'t be X"'),
+        (r'\bskip\s+(this|the)\s+(test|feature|implementation)\b', 'Removal deferral: "skip this X"'),
+        (r'\blet\'s\s+(just\s+)?(remove|skip|delete)\b', 'Removal deferral: "let\'s remove/skip"'),
+
         # Code markers (in actual code blocks)
         (r'//\s*TODO\b', 'Code marker: TODO'),
         (r'//\s*FIXME\b', 'Code marker: FIXME'),
