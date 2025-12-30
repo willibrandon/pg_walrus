@@ -918,6 +918,8 @@ Supports PostgreSQL 15+ due to `pgstat_fetch_stat_checkpointer()` API. Version-s
 ## Active Technologies
 - Rust 1.83+ (latest stable, edition 2024) + pgrx 0.16.1, libc (FFI compatibility) (001-pgrx-core-rewrite)
 - N/A (extension modifies postgresql.auto.conf via ALTER SYSTEM) (001-pgrx-core-rewrite)
+- Rust 1.83+ (latest stable, edition 2024) + pgrx 0.16.1, libc 0.2 (002-auto-shrink)
+- N/A (modifies postgresql.auto.conf via ALTER SYSTEM) (002-auto-shrink)
 
 ## Recent Changes
 - 001-pgrx-core-rewrite: Added Rust 1.83+ (latest stable, edition 2024) + pgrx 0.16.1, libc (FFI compatibility)
