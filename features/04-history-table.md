@@ -21,7 +21,7 @@ CREATE INDEX ON walrus.history (timestamp);
 ```
 
 ## Automatic Cleanup
-- `walrus.history_retention_days` (int, default: 30) - Days to keep history
+- `walrus.history_retention_days` (int, default: 7) - Days to keep history
 - Cleanup function: `walrus.cleanup_history()` deletes old records
 - Optionally integrate with pg_cron or call from background worker
 
