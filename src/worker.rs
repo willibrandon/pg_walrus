@@ -9,7 +9,7 @@
 //! can read real-time metrics.
 
 use crate::algorithm::{calculate_new_size, calculate_shrink_size};
-use crate::config::execute_alter_system;
+use crate::config::{execute_alter_system, signal_postmaster_reload};
 use crate::guc::{
     WALRUS_COOLDOWN_SEC, WALRUS_DRY_RUN, WALRUS_ENABLE, WALRUS_MAX, WALRUS_MAX_CHANGES_PER_HOUR,
     WALRUS_MIN_SIZE, WALRUS_SHRINK_ENABLE, WALRUS_SHRINK_FACTOR, WALRUS_SHRINK_INTERVALS,
@@ -38,9 +38,7 @@ static SUPPRESS_NEXT_SIGHUP: AtomicBool = AtomicBool::new(false);
 /// The atomic flag is set to suppress our own handling of the resulting SIGHUP.
 fn send_sighup_to_postmaster() {
     SUPPRESS_NEXT_SIGHUP.store(true, Ordering::SeqCst);
-    unsafe {
-        libc::kill(pg_sys::PostmasterPid, libc::SIGHUP);
-    }
+    signal_postmaster_reload();
 }
 
 /// Check if we should skip this iteration due to self-triggered SIGHUP.

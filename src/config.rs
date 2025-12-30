@@ -2,10 +2,56 @@
 //!
 //! This module handles modifying max_wal_size via ALTER SYSTEM SET,
 //! constructing the necessary AST nodes and executing within a transaction.
+//! Also provides cross-platform signaling to trigger configuration reloads.
 
 use pgrx::pg_sys;
 use std::ffi::CString;
 use std::ptr;
+
+/// Send SIGHUP to the postmaster to trigger configuration reload.
+///
+/// This is used after ALTER SYSTEM to apply configuration changes.
+/// On Unix, sends SIGHUP signal directly via libc.
+/// On Windows, signals via PostgreSQL's named event mechanism.
+#[cfg(unix)]
+pub fn signal_postmaster_reload() {
+    unsafe {
+        libc::kill(pg_sys::PostmasterPid, libc::SIGHUP);
+    }
+}
+
+/// Send SIGHUP to the postmaster to trigger configuration reload.
+///
+/// On Windows, PostgreSQL uses named events for signal emulation.
+/// The event name format is `Global\PostgreSQL.SIGHUP.<pid>`.
+#[cfg(windows)]
+pub fn signal_postmaster_reload() {
+    // Windows API function declarations
+    #[link(name = "kernel32")]
+    unsafe extern "system" {
+        fn OpenEventA(
+            dwDesiredAccess: u32,
+            bInheritHandle: i32,
+            lpName: *const i8,
+        ) -> *mut std::ffi::c_void;
+        fn SetEvent(hEvent: *mut std::ffi::c_void) -> i32;
+        fn CloseHandle(hObject: *mut std::ffi::c_void) -> i32;
+    }
+
+    const EVENT_MODIFY_STATE: u32 = 0x0002;
+
+    unsafe {
+        let pid = pg_sys::PostmasterPid;
+        let event_name = format!("Global\\PostgreSQL.SIGHUP.{}", pid);
+        let c_name = CString::new(event_name).expect("CString::new failed");
+
+        let handle = OpenEventA(EVENT_MODIFY_STATE, 0, c_name.as_ptr());
+        if !handle.is_null() {
+            SetEvent(handle);
+            CloseHandle(handle);
+        }
+    }
+}
 
 /// Allocates and initializes a PostgreSQL node structure.
 ///

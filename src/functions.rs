@@ -9,7 +9,7 @@
 //! - `walrus.cleanup_history()`: Delete old history records (moved from lib.rs)
 
 use crate::algorithm::compute_recommendation;
-use crate::config::execute_alter_system;
+use crate::config::{execute_alter_system, signal_postmaster_reload};
 use crate::guc::{
     WALRUS_COOLDOWN_SEC, WALRUS_ENABLE, WALRUS_MAX, WALRUS_MAX_CHANGES_PER_HOUR, WALRUS_MIN_SIZE,
     WALRUS_SHRINK_ENABLE, WALRUS_SHRINK_FACTOR, WALRUS_SHRINK_INTERVALS, WALRUS_THRESHOLD,
@@ -361,9 +361,7 @@ pub fn analyze(apply: bool) -> Result<JsonB, spi::Error> {
                 });
 
                 // Send SIGHUP to apply configuration
-                unsafe {
-                    libc::kill(pg_sys::PostmasterPid, libc::SIGHUP);
-                }
+                signal_postmaster_reload();
             }
         }
     }

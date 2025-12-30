@@ -1,24 +1,22 @@
 //! Checkpoint statistics access for pg_walrus.
 //!
 //! This module provides version-specific access to PostgreSQL checkpoint statistics
-//! and the checkpoint_timeout GUC variable (which is not exposed by pgrx).
+//! and the checkpoint_timeout GUC variable.
 
 use pgrx::pg_sys;
-use std::ffi::c_int;
 use std::time::Duration;
 
-/// Returns the raw CheckPointTimeout value in seconds (for testing).
-#[cfg(any(test, feature = "pg_test"))]
-#[inline]
-pub fn checkpoint_timeout_secs() -> i32 {
-    // SAFETY: CheckPointTimeout is exported by PostgreSQL with PGDLLIMPORT,
-    // guaranteed to exist and be initialized before any extension code runs.
-    unsafe { CheckPointTimeout }
-}
+#[cfg(unix)]
+use std::ffi::c_int;
+#[cfg(windows)]
+use std::ffi::{CStr, CString};
+#[cfg(windows)]
+use std::ptr;
 
-// Direct access to PostgreSQL's checkpoint-related GUC variables.
-// These are exported by PostgreSQL with PGDLLIMPORT but not included
-// in pgrx's default bindgen headers.
+// On Unix, we can access CheckPointTimeout directly via extern declaration.
+// On Windows, PostgreSQL DLL symbols require proper import which extern "C"
+// doesn't provide, so we use GetConfigOptionByName instead.
+#[cfg(unix)]
 unsafe extern "C" {
     /// Checkpoint timeout in seconds (default 300, range 30-86400).
     /// Defined in src/backend/postmaster/checkpointer.c
@@ -26,16 +24,88 @@ unsafe extern "C" {
     static CheckPointTimeout: c_int;
 }
 
+/// Returns the raw CheckPointTimeout value in seconds (for testing).
+#[cfg(all(unix, any(test, feature = "pg_test")))]
+#[inline]
+pub fn checkpoint_timeout_secs() -> i32 {
+    unsafe { CheckPointTimeout }
+}
+
+/// Returns the raw CheckPointTimeout value in seconds (for testing).
+#[cfg(all(windows, any(test, feature = "pg_test")))]
+#[inline]
+pub fn checkpoint_timeout_secs() -> i32 {
+    checkpoint_timeout().as_secs() as i32
+}
+
 /// Returns the checkpoint_timeout GUC value as a Duration.
 ///
-/// This is used as the background worker's wait interval, matching
-/// the checkpoint monitoring cycle.
+/// On Unix, reads directly from PostgreSQL's CheckPointTimeout global variable.
+/// On Windows, uses GetConfigOptionByName to retrieve the GUC value.
+#[cfg(unix)]
 #[inline]
 pub fn checkpoint_timeout() -> Duration {
     // SAFETY: CheckPointTimeout is exported by PostgreSQL with PGDLLIMPORT,
     // guaranteed to exist and be initialized before any extension code runs.
     let secs = unsafe { CheckPointTimeout } as u64;
     Duration::from_secs(secs)
+}
+
+/// Returns the checkpoint_timeout GUC value as a Duration.
+///
+/// On Windows, uses GetConfigOptionByName to retrieve the GUC value
+/// since direct extern symbol access doesn't work with PostgreSQL DLLs.
+#[cfg(windows)]
+#[inline]
+pub fn checkpoint_timeout() -> Duration {
+    unsafe {
+        let name = CString::new("checkpoint_timeout").expect("CString::new failed");
+        let value_ptr = pg_sys::GetConfigOptionByName(name.as_ptr(), ptr::null_mut(), false);
+        if value_ptr.is_null() {
+            return Duration::from_secs(300); // default
+        }
+        let value_str = CStr::from_ptr(value_ptr).to_str().unwrap_or("300s");
+        parse_interval_to_secs(value_str)
+    }
+}
+
+/// Parse a PostgreSQL interval string to seconds Duration.
+///
+/// Handles formats like "5min", "300s", "300", etc.
+#[cfg(windows)]
+fn parse_interval_to_secs(s: &str) -> Duration {
+    let s = s.trim();
+
+    // Try to parse as plain number (seconds)
+    if let Ok(secs) = s.parse::<u64>() {
+        return Duration::from_secs(secs);
+    }
+
+    // Handle suffixes: s, min, h, d
+    if let Some(num_str) = s.strip_suffix("ms") {
+        if let Ok(ms) = num_str.trim().parse::<u64>() {
+            return Duration::from_millis(ms);
+        }
+    } else if let Some(num_str) = s.strip_suffix('s') {
+        if let Ok(secs) = num_str.trim().parse::<u64>() {
+            return Duration::from_secs(secs);
+        }
+    } else if let Some(num_str) = s.strip_suffix("min") {
+        if let Ok(mins) = num_str.trim().parse::<u64>() {
+            return Duration::from_secs(mins * 60);
+        }
+    } else if let Some(num_str) = s.strip_suffix('h') {
+        if let Ok(hours) = num_str.trim().parse::<u64>() {
+            return Duration::from_secs(hours * 3600);
+        }
+    } else if let Some(num_str) = s.strip_suffix('d') {
+        if let Ok(days) = num_str.trim().parse::<u64>() {
+            return Duration::from_secs(days * 86400);
+        }
+    }
+
+    // Default fallback
+    Duration::from_secs(300)
 }
 
 /// Returns the current count of forced (requested) checkpoints since PostgreSQL startup.
