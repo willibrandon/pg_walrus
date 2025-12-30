@@ -995,6 +995,7 @@ Supports PostgreSQL 15+ due to `pgstat_fetch_stat_checkpointer()` API. Version-s
 - PostgreSQL table (`walrus.history`) with BIGSERIAL primary key, TIMESTAMPTZ, JSONB (003-history-table)
 - Rust 1.83+ (edition 2024) + pgrx 0.16.1 + pgrx 0.16.1, serde_json 1.x, libc 0.2 (004-sql-observability-functions)
 - PostgreSQL shared memory (ephemeral), walrus.history table (persistent) (004-sql-observability-functions)
+- PostgreSQL `walrus.history` table (existing from feature 004) (005-dry-run-mode)
 
 ## Recent Changes
 - 001-pgrx-core-rewrite: Added Rust 1.83+ (latest stable, edition 2024) + pgrx 0.16.1, libc (FFI compatibility)
