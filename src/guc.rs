@@ -4,9 +4,17 @@
 //! - `walrus.enable`: Enable/disable automatic WAL size adjustment
 //! - `walrus.max`: Maximum allowed max_wal_size (in MB)
 //! - `walrus.threshold`: Forced checkpoint count threshold before resize
+//! - `walrus.shrink_enable`: Enable/disable automatic shrinking
+//! - `walrus.shrink_factor`: Multiplication factor when shrinking (0.01-0.99)
+//! - `walrus.shrink_intervals`: Quiet intervals before triggering shrink
+//! - `walrus.min_size`: Minimum floor for max_wal_size (in MB)
 
 use pgrx::guc::{GucContext, GucFlags, GucRegistry, GucSetting};
 use pgrx::pg_sys;
+
+// =========================================================================
+// Grow GUC Parameters
+// =========================================================================
 
 /// Enable automatic resizing of max_wal_size parameter.
 /// When enabled, pg_walrus monitors forced checkpoints and adjusts max_wal_size.
@@ -23,11 +31,40 @@ pub static WALRUS_MAX: GucSetting<i32> = GucSetting::<i32>::new(4096);
 /// Default: 2, Min: 1, Max: 1000
 pub static WALRUS_THRESHOLD: GucSetting<i32> = GucSetting::<i32>::new(2);
 
+// =========================================================================
+// Shrink GUC Parameters
+// =========================================================================
+
+/// Enable automatic shrinking of max_wal_size parameter.
+/// When enabled (and walrus.enable is also true), pg_walrus shrinks max_wal_size
+/// after sustained periods of low checkpoint activity.
+/// Default: true
+pub static WALRUS_SHRINK_ENABLE: GucSetting<bool> = GucSetting::<bool>::new(true);
+
+/// Multiplication factor when shrinking max_wal_size.
+/// Lower values shrink more aggressively. Must be between 0.01 and 0.99 (exclusive).
+/// Default: 0.75 (reduces by 25%)
+pub static WALRUS_SHRINK_FACTOR: GucSetting<f64> = GucSetting::<f64>::new(0.75);
+
+/// Number of consecutive quiet checkpoint intervals before triggering shrink.
+/// A quiet interval is one where forced checkpoints < threshold.
+/// Default: 5, Min: 1, Max: 1000
+pub static WALRUS_SHRINK_INTERVALS: GucSetting<i32> = GucSetting::<i32>::new(5);
+
+/// Minimum floor for max_wal_size in MB.
+/// pg_walrus will never shrink max_wal_size below this value.
+/// Default: 1024 (1GB), Min: 2 MB, Max: i32::MAX MB
+pub static WALRUS_MIN_SIZE: GucSetting<i32> = GucSetting::<i32>::new(1024);
+
 /// Register all pg_walrus GUC parameters with PostgreSQL.
 ///
-/// This function registers the three GUC parameters using GucContext::Sighup,
+/// This function registers all seven GUC parameters using GucContext::Sighup,
 /// allowing runtime changes via ALTER SYSTEM and pg_reload_conf().
 pub fn register_gucs() {
+    // =========================================================================
+    // Grow GUCs
+    // =========================================================================
+
     GucRegistry::define_bool_guc(
         c"walrus.enable",
         c"Enable automatic resizing of max_wal_size parameter.",
@@ -57,6 +94,52 @@ pub fn register_gucs() {
         1000,
         GucContext::Sighup,
         GucFlags::default(),
+    );
+
+    // =========================================================================
+    // Shrink GUCs
+    // =========================================================================
+
+    GucRegistry::define_bool_guc(
+        c"walrus.shrink_enable",
+        c"Enable automatic shrinking of max_wal_size parameter.",
+        c"When enabled, pg_walrus shrinks max_wal_size after sustained low activity.",
+        &WALRUS_SHRINK_ENABLE,
+        GucContext::Sighup,
+        GucFlags::default(),
+    );
+
+    GucRegistry::define_float_guc(
+        c"walrus.shrink_factor",
+        c"Multiplication factor when shrinking max_wal_size.",
+        c"Lower values shrink more aggressively. Must be between 0.01 and 0.99.",
+        &WALRUS_SHRINK_FACTOR,
+        0.01,
+        0.99,
+        GucContext::Sighup,
+        GucFlags::default(),
+    );
+
+    GucRegistry::define_int_guc(
+        c"walrus.shrink_intervals",
+        c"Quiet checkpoint intervals before triggering shrink.",
+        c"A quiet interval is one where forced checkpoints are below threshold.",
+        &WALRUS_SHRINK_INTERVALS,
+        1,
+        1000,
+        GucContext::Sighup,
+        GucFlags::default(),
+    );
+
+    GucRegistry::define_int_guc(
+        c"walrus.min_size",
+        c"Minimum floor for max_wal_size in MB.",
+        c"pg_walrus will never shrink max_wal_size below this value.",
+        &WALRUS_MIN_SIZE,
+        2,
+        i32::MAX,
+        GucContext::Sighup,
+        GucFlags::UNIT_MB,
     );
 
     // Reserve the "walrus" GUC prefix to prevent other extensions from using it.

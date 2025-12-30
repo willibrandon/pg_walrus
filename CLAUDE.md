@@ -919,11 +919,22 @@ src/
 
 ## GUC Parameters
 
+### Core Parameters
+
 | Parameter | Default | Description |
 |-----------|---------|-------------|
-| `walsizer.enable` / `walrus.enable` | true | Enable/disable auto-sizing |
-| `walsizer.max` / `walrus.max` | 4GB | Maximum allowed `max_wal_size` |
-| `walsizer.threshold` / `walrus.threshold` | 2 | Forced checkpoints before resize |
+| `walrus.enable` | true | Enable/disable auto-sizing |
+| `walrus.max` | 4GB | Maximum allowed `max_wal_size` |
+| `walrus.threshold` | 2 | Forced checkpoints before resize |
+
+### Auto-Shrink Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `walrus.shrink_enable` | true | Enable/disable automatic shrinking |
+| `walrus.shrink_factor` | 0.75 | Multiplier for shrink calculation (0.01-0.99) |
+| `walrus.shrink_intervals` | 5 | Quiet intervals before shrinking (1-1000) |
+| `walrus.min_size` | 1GB | Minimum floor for `max_wal_size` |
 
 ## PostgreSQL Version Compatibility
 

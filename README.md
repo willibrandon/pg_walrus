@@ -29,14 +29,14 @@ LOG:  parameter "max_wal_size" changed to "2560"
 
 ## Features
 
-### Current (from pg_walsizer)
+### Current
 - Background worker monitoring checkpoint activity
 - Automatic `max_wal_size` increases when forced checkpoints exceed threshold
 - Configurable maximum cap to prevent runaway growth
 - Live configuration updates via `ALTER SYSTEM` + `SIGHUP`
+- **Auto-Shrink**: Automatically reduce `max_wal_size` after sustained periods of low checkpoint activity
 
-### Planned (pg_walrus enhancements)
-- **Auto-Shrink**: Automatically reduce size when workload decreases
+### Planned
 - **SQL Functions**: Query status, history, and recommendations via SQL
 - **History Table**: Full audit trail of all adjustments
 - **Dry-Run Mode**: Test behavior without making changes
@@ -118,11 +118,22 @@ pg_ctl restart -D $PGDATA
 
 ## Configuration
 
+### Core Parameters
+
 | Parameter | Default | Description |
 |-----------|---------|-------------|
 | `walrus.enable` | `true` | Enable/disable automatic resizing |
 | `walrus.max` | `4GB` | Maximum allowed `max_wal_size` |
 | `walrus.threshold` | `2` | Forced checkpoints before resize |
+
+### Auto-Shrink Parameters
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `walrus.shrink_enable` | `true` | Enable/disable automatic shrinking |
+| `walrus.shrink_factor` | `0.75` | Multiplier for shrink calculation (0.01-0.99) |
+| `walrus.shrink_intervals` | `5` | Quiet intervals before shrinking (1-1000) |
+| `walrus.min_size` | `1GB` | Minimum floor for `max_wal_size` |
 
 All parameters require `SIGHUP` to take effect (no restart needed).
 
