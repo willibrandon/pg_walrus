@@ -12,13 +12,18 @@ Rewrite the pg_walsizer PostgreSQL extension in Rust using pgrx. The extension m
 **Language/Version**: Rust 1.83+ (latest stable, edition 2024)
 **Primary Dependencies**: pgrx 0.16.1, libc (FFI compatibility)
 **Storage**: N/A (extension modifies postgresql.auto.conf via ALTER SYSTEM)
-**Testing**: cargo pgrx test (pg15, pg16, pg17, pg18)
+**Testing**: Three complementary approaches (see contracts/testing.md):
+- `#[pg_test]` integration tests: `cargo pgrx test pgXX`
+- `#[test]` pure Rust unit tests: `cargo test --lib`
+- pg_regress SQL tests: `cargo pgrx regress pgXX`
 **Target Platform**: Linux server (PostgreSQL extension, shared_preload_libraries)
 **Project Type**: Single PostgreSQL extension
 **Performance Goals**: Background worker wake cycle matching checkpoint_timeout (~5 minutes default), sub-second configuration changes
 **Constraints**: Memory overhead <1MB, no blocking of PostgreSQL operations, must handle SIGHUP/SIGTERM signals
 **Scale/Scope**: Single background worker per PostgreSQL instance
-**Technical Notes**: `CheckPointTimeout` accessed via extern C declaration (pgrx does not expose - see research.md R8)
+**Technical Notes**:
+- `CheckPointTimeout` accessed via extern C declaration (pgrx does not expose - see research.md R8)
+- pgrx-tests supports `shared_preload_libraries` via `postgresql_conf_options()` (see research.md R9)
 
 ## Constitution Check
 
@@ -50,7 +55,7 @@ Rewrite the pg_walsizer PostgreSQL extension in Rust using pgrx. The extension m
 | V. GUC Configuration | PASS | contracts/guc-interface.md defines all three parameters; R8 documents checkpoint_timeout access |
 | VI. SPI & Database Access | N/A | Using raw pg_sys transaction commands, not SPI |
 | VII. Version Compatibility | PASS | research.md R2 confirms #[cfg] for num_requested vs requested_checkpoints |
-| VIII. Test Discipline | PASS | quickstart.md includes verification commands |
+| VIII. Test Discipline | PASS | research.md R9 documents pgrx-tests shared_preload_libraries support; background-worker.md includes test patterns |
 | IX. Anti-Patterns | PASS | research.md R5 uses AtomicBool for signal handling |
 | X. Observability | PASS | contracts/background-worker.md defines logging contract |
 
@@ -65,6 +70,9 @@ specs/001-pgrx-core-rewrite/
 ├── data-model.md        # Phase 1 output
 ├── quickstart.md        # Phase 1 output
 ├── contracts/           # Phase 1 output
+│   ├── background-worker.md  # Worker lifecycle contract
+│   ├── guc-interface.md      # GUC parameter contract
+│   └── testing.md            # Testing guidelines and patterns
 └── tasks.md             # Phase 2 output (/speckit.tasks)
 ```
 
@@ -79,14 +87,22 @@ src/
 └── guc.rs               # GUC parameter definitions (walrus.enable, walrus.max, walrus.threshold)
 
 tests/
-├── pg_regress/          # SQL-based regression tests
-│   ├── sql/
-│   │   └── setup.sql    # Basic functionality tests
-│   └── expected/
-│       └── setup.out    # Expected output
+├── pg_regress/              # SQL-based regression tests (cargo pgrx regress)
+│   ├── sql/                 # Test SQL scripts
+│   │   ├── setup.sql        # Creates extension (runs first)
+│   │   ├── guc_params.sql   # GUC parameter behavior tests
+│   │   └── extension_info.sql # Extension metadata tests
+│   ├── expected/            # Expected output files
+│   │   ├── setup.out
+│   │   ├── guc_params.out
+│   │   └── extension_info.out
+│   └── results/             # Generated during tests (gitignored)
 ```
 
-**Structure Decision**: Single project structure matching standard pgrx extension layout. The `src/` directory contains the Rust source code organized by concern (worker, stats, config, guc). Tests use both pgrx's `#[pg_test]` framework and PostgreSQL's pg_regress for SQL-based tests.
+**Structure Decision**: Single project structure matching standard pgrx extension layout. The `src/` directory contains the Rust source code organized by concern (worker, stats, config, guc). Tests use three complementary approaches:
+- `#[pg_test]` in `src/lib.rs` for PostgreSQL integration tests (GUCs, worker visibility)
+- `#[test]` in `src/worker.rs` for pure Rust unit tests (calculations, overflow)
+- `pg_regress` in `tests/pg_regress/` for SQL-based verification (GUC syntax, extension loading)
 
 ## Complexity Tracking
 

@@ -3,7 +3,7 @@
 **Input**: Design documents from `/specs/001-pgrx-core-rewrite/`
 **Prerequisites**: plan.md, spec.md, research.md, data-model.md, contracts/
 
-**Tests**: Required per Constitution VIII (Test Discipline). Test tasks included in Phase 8.
+**Tests**: Required per Constitution VIII (Test Discipline). Test tasks included in Phase 8. See contracts/testing.md for comprehensive testing guidelines.
 
 **Organization**: Tasks are grouped by user story to enable independent implementation and testing of each story.
 
@@ -144,15 +144,29 @@
 
 ### Background Worker Tests
 
-- [ ] T040 Create postgresql_conf_options() returning vec!["shared_preload_libraries='pg_walrus'"] for background worker test configuration in src/lib.rs per Constitution VIII
-- [ ] T041 Create #[pg_test] test verifying background worker appears in pg_stat_activity with backend_type containing 'pg_walrus' in src/lib.rs
+- [ ] T040 Create pg_test module in src/lib.rs with setup() and postgresql_conf_options() returning vec!["shared_preload_libraries='pg_walrus'"] per research.md R9
+- [ ] T041 Create #[pg_test] test verifying background worker appears in pg_stat_activity with backend_type = 'pg_walrus' in src/lib.rs per research.md R9
 
 ### Pure Rust Unit Tests
 
 - [ ] T042 [P] Create #[test] (pure Rust) test for new size calculation: verify current_size * (delta + 1) formula with inputs (1024, 3) → 4096 in src/worker.rs
 - [ ] T043 [P] Create #[test] (pure Rust) test for i32 overflow handling: verify saturating_mul caps at i32::MAX for large inputs in src/worker.rs
 
-**Checkpoint**: All tests pass with `cargo pgrx test pg17`
+### pg_regress SQL Tests
+
+pg_regress tests verify extension behavior via SQL commands. Run with `cargo pgrx regress pgXX`.
+
+- [ ] T044 Update tests/pg_regress/sql/setup.sql: verify CREATE EXTENSION pg_walrus succeeds and extension loads correctly
+- [ ] T045 [P] Create tests/pg_regress/sql/guc_params.sql: test SHOW for all three GUCs, SET valid values, SET boundary values (threshold 1 and 1000), verify error on invalid values
+- [ ] T046 [P] Create tests/pg_regress/sql/extension_info.sql: verify extension metadata via pg_extension, check extversion matches Cargo.toml version
+
+### pg_regress Expected Output
+
+- [ ] T047 [P] Generate tests/pg_regress/expected/setup.out: run `cargo pgrx regress pg17 --auto` and accept output for setup.sql
+- [ ] T048 [P] Generate tests/pg_regress/expected/guc_params.out: run `cargo pgrx regress pg17 --auto` and accept output for guc_params.sql
+- [ ] T049 [P] Generate tests/pg_regress/expected/extension_info.out: run `cargo pgrx regress pg17 --auto` and accept output for extension_info.sql
+
+**Checkpoint**: All tests pass with `cargo pgrx test pg17` and `cargo pgrx regress pg17`
 
 ---
 
@@ -191,6 +205,8 @@
 - T033, T034 can run in parallel (independent logging additions)
 - T037, T038, T039 can run in parallel (independent GUC tests)
 - T042, T043 can run in parallel (independent pure Rust tests)
+- T045, T046 can run in parallel (independent pg_regress SQL tests)
+- T047, T048, T049 can run in parallel (independent pg_regress expected output generation)
 
 ---
 
@@ -241,8 +257,8 @@ Task: T010 "Implement alter_max_wal_size() in src/config.rs"
 | US4 (P2) | Multi-Version | 4 | 4 |
 | US3 (P3) | Lifecycle | 4 | 0 |
 | Polish | - | 8 | 2 |
-| Tests | Constitution VIII | 7 | 5 |
-| **Total** | | **43** | **17** |
+| Tests | Constitution VIII | 13 | 9 |
+| **Total** | | **49** | **21** |
 
 ### MVP Scope
 
@@ -258,3 +274,7 @@ User Story 1 alone (Phases 1-3) provides the core value proposition: automatic W
 | src/stats.rs | T002, T007, T008, T009, T029 |
 | src/config.rs | T002, T010, T011, T036 |
 | src/worker.rs | T002, T012-T016, T018-T020, T025-T026, T028, T030-T034, T042-T043 |
+| tests/pg_regress/sql/setup.sql | T044, T047 |
+| tests/pg_regress/sql/guc_params.sql | T045, T048 |
+| tests/pg_regress/sql/extension_info.sql | T046, T049 |
+| tests/pg_regress/expected/*.out | T047, T048, T049 |

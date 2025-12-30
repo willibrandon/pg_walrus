@@ -150,8 +150,115 @@ sudo make install       # Install to PostgreSQL
 ### Future Rust Extension (pg_walrus)
 ```bash
 cargo pgrx build --features pg17           # Build for PG17
-cargo pgrx test pg17                       # Run tests
+cargo pgrx test pg17                       # Run pgrx integration tests
+cargo pgrx regress pg17                    # Run pg_regress SQL tests
 cargo pgrx package --pg-config /usr/bin/pg_config  # Create package
+```
+
+## Testing Strategy
+
+pg_walrus uses three complementary testing approaches:
+
+### 1. pgrx Integration Tests (`#[pg_test]`)
+
+Tests that run inside PostgreSQL with full access to SPI, GUCs, and system catalogs.
+
+```bash
+cargo pgrx test pg17                    # Run all tests for PG17
+cargo pgrx test pg17 test_guc_default   # Run specific test
+```
+
+**Use for**: GUC parameter verification, background worker visibility via `pg_stat_activity`, any test requiring database context.
+
+**Module pattern**:
+```rust
+#[cfg(any(test, feature = "pg_test"))]
+#[pgrx::pg_schema]
+mod tests {
+    use pgrx::prelude::*;
+
+    #[pg_test]
+    fn test_guc_default() {
+        let result = Spi::get_one::<&str>("SHOW walrus.enable").unwrap();
+        assert_eq!(result, Some("on"));
+    }
+
+    #[pg_test(error = "invalid value")]
+    fn test_guc_invalid() -> Result<(), spi::Error> {
+        Spi::run("SET walrus.threshold = -1")
+    }
+}
+```
+
+**Background worker testing** requires `postgresql_conf_options()`:
+```rust
+#[cfg(test)]
+pub mod pg_test {
+    pub fn setup(_options: Vec<&str>) {}
+
+    pub fn postgresql_conf_options() -> Vec<&'static str> {
+        vec!["shared_preload_libraries='pg_walrus'"]
+    }
+}
+```
+
+### 2. Pure Rust Unit Tests (`#[test]`)
+
+Tests for pure Rust logic that does not require PostgreSQL.
+
+```bash
+cargo test --lib        # Run pure Rust tests only
+```
+
+**Use for**: Mathematical calculations, overflow handling, string formatting.
+
+### 3. pg_regress SQL Tests
+
+SQL-based tests using PostgreSQL's native pg_regress framework.
+
+```bash
+cargo pgrx regress pg17                 # Run all pg_regress tests
+cargo pgrx regress pg17 guc_params      # Run specific test
+cargo pgrx regress pg17 --auto          # Auto-accept new output
+cargo pgrx regress pg17 --resetdb       # Reset database first
+```
+
+**Directory structure**:
+```
+tests/pg_regress/
+├── sql/               # Test SQL scripts
+│   ├── setup.sql      # Creates extension (runs first, special)
+│   ├── guc_params.sql # GUC parameter tests
+│   └── extension_info.sql
+├── expected/          # Expected output files
+│   ├── setup.out
+│   ├── guc_params.out
+│   └── extension_info.out
+└── results/           # Generated during tests (gitignored)
+```
+
+**Use for**: SQL syntax verification, error message testing, GUC parameter SQL interface.
+
+### When to Use Each Test Type
+
+| Scenario | Test Type |
+|----------|-----------|
+| GUC parameter defaults (internal) | `#[pg_test]` |
+| GUC parameter SQL syntax | pg_regress |
+| Background worker visibility | `#[pg_test]` |
+| Size calculation formula | `#[test]` |
+| Overflow protection | `#[test]` |
+| Error message format | pg_regress |
+| Extension metadata | pg_regress |
+
+### Multi-Version Testing
+
+```bash
+# Test all supported PostgreSQL versions
+cargo pgrx test pg15 && cargo pgrx test pg16 && cargo pgrx test pg17 && cargo pgrx test pg18
+
+# pg_regress all versions
+cargo pgrx regress pg15 && cargo pgrx regress pg16 && cargo pgrx regress pg17 && cargo pgrx regress pg18
 ```
 
 ## Architecture

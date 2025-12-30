@@ -420,4 +420,203 @@ The extern declaration is safe because:
 | Transactions | Raw pg_sys transaction commands | `StartTransactionCommand()` |
 | CheckPointTimeout | extern C declaration | `static CheckPointTimeout: c_int` |
 
+---
+
+## R9: pgrx-tests Framework Support for shared_preload_libraries
+
+### Decision
+Use `postgresql_conf_options()` returning `vec!["shared_preload_libraries='pg_walrus'"]` in the `pg_test` module. The pgrx-tests framework fully supports this configuration.
+
+### How It Works
+
+The pgrx-tests framework (`pgrx-tests/src/framework.rs`) handles `postgresql_conf_options()` as follows:
+
+1. **Line 257**: `initdb(postgresql_conf)?;` - initializes database with config settings
+2. **Lines 519-530**: `modify_postgresql_conf()` writes settings to `postgresql.auto.conf`:
+   ```rust
+   for setting in postgresql_conf {
+       contents.push_str(&format!("{setting}\n"));
+   }
+   let postgresql_auto_conf = pgdata.join("postgresql.auto.conf");
+   std::fs::write(postgresql_auto_conf, contents.as_bytes())?;
+   ```
+3. **Line 259**: `start_pg()` - starts PostgreSQL WITH those settings already applied
+4. **Line 263**: `create_extension()?;` - runs CREATE EXTENSION AFTER PostgreSQL is already running
+
+### Execution Order
+
+```text
+initdb(postgresql_conf)          ← Settings written to postgresql.auto.conf
+        ↓
+start_pg()                       ← PostgreSQL starts with shared_preload_libraries
+        ↓                           _PG_init() called, bgworker registered
+create_extension()               ← SQL objects created (extension already loaded)
+        ↓
+run tests                        ← Background worker is now running
+```
+
+### Implementation Pattern
+
+```rust
+// In src/lib.rs
+
+#[cfg(test)]
+pub mod pg_test {
+    pub fn setup(_options: Vec<&str>) {}
+
+    pub fn postgresql_conf_options() -> Vec<&'static str> {
+        vec!["shared_preload_libraries='pg_walrus'"]
+    }
+}
+```
+
+### Critical: _PG_init() Must Check Loading Context
+
+```rust
+#[pg_guard]
+pub extern "C-unwind" fn _PG_init() {
+    // CRITICAL: Only register bgworker when loaded via shared_preload_libraries
+    if unsafe { !pg_sys::process_shared_preload_libraries_in_progress } {
+        // Not loaded via shared_preload_libraries - skip bgworker registration
+        // GUCs can still be registered for SQL-level access
+        return;
+    }
+
+    register_gucs();
+
+    BackgroundWorkerBuilder::new("pg_walrus")
+        .set_function("walrus_worker_main")
+        .set_library("pg_walrus")
+        // ...
+        .load();
+}
+```
+
+### Why This Matters
+
+Without checking `process_shared_preload_libraries_in_progress`:
+- When extension loads via CREATE EXTENSION (SQL), `_PG_init()` is called
+- Attempting to register a background worker at this point fails silently
+- The bgworker never starts, tests fail
+
+With the check:
+- Extension loaded via shared_preload_libraries at postmaster startup → bgworker registered
+- Extension loaded via CREATE EXTENSION → GUCs available, bgworker already running from startup
+
+### Existing Examples in pgrx
+
+| Example | postgresql_conf_options() | Has Tests? |
+|---------|---------------------------|------------|
+| bgworker | `shared_preload_libraries='bgworker'` | No #[pg_test] for worker |
+| shmem | `shared_preload_libraries='shmem'` | No #[pg_test] for shmem |
+| wal_decoder | `wal_level = logical` | Uses pgrx_tests::initialize() |
+
+### Testing Background Worker Visibility
+
+```rust
+#[cfg(any(test, feature = "pg_test"))]
+#[pg_schema]
+mod tests {
+    use pgrx::prelude::*;
+
+    #[pg_test]
+    fn test_background_worker_running() {
+        let result = Spi::get_one::<bool>(
+            "SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE backend_type = 'pg_walrus')"
+        ).expect("query failed");
+        assert_eq!(result, Some(true), "pg_walrus background worker should be running");
+    }
+}
+```
+
+This test WILL pass when:
+1. `postgresql_conf_options()` returns `shared_preload_libraries='pg_walrus'`
+2. `_PG_init()` checks `process_shared_preload_libraries_in_progress` and registers bgworker only then
+3. Worker function is exported with `#[unsafe(no_mangle)]` and `extern "C-unwind"`
+
+---
+
+## R10: pg_regress SQL Tests with pgrx
+
+### Decision
+
+Use `cargo pgrx regress` for SQL-based regression tests that complement `#[pg_test]` integration tests.
+
+### Rationale
+
+- pg_regress verifies extension behavior via SQL commands in psql
+- Tests are easier to read and write for SQL-centric scenarios
+- Output comparison provides clear diff-based failure diagnosis
+- Complements `#[pg_test]` which runs in transaction context
+
+### Directory Structure
+
+```text
+tests/pg_regress/
+├── sql/                 # Test SQL scripts
+│   ├── setup.sql        # Creates extension (runs first, special)
+│   ├── guc_params.sql   # GUC parameter tests
+│   └── extension_info.sql # Extension metadata tests
+├── expected/            # Expected output files
+│   ├── setup.out
+│   ├── guc_params.out
+│   └── extension_info.out
+└── results/             # Generated during tests (gitignored)
+```
+
+### Execution Commands
+
+```bash
+# Run all pg_regress tests for PostgreSQL 17
+cargo pgrx regress pg17
+
+# Run specific test
+cargo pgrx regress pg17 guc_params
+
+# Auto-accept new test output
+cargo pgrx regress pg17 --auto
+
+# Reset database and re-run setup.sql
+cargo pgrx regress pg17 --resetdb
+
+# Run with custom PostgreSQL config (for background workers)
+cargo pgrx regress pg17 --postgresql-conf shared_preload_libraries=pg_walrus
+```
+
+### Key Behaviors
+
+1. **setup.sql is special**: Runs once when database is created, must include `CREATE EXTENSION`
+2. **Tests run alphabetically**: Name files to control execution order if needed
+3. **Persistent changes**: Unlike `#[pg_test]`, changes persist between tests (use `DROP IF EXISTS` pattern)
+4. **Output comparison**: Uses diff against expected/*.out files
+
+### When to Use pg_regress vs #[pg_test]
+
+| Scenario | Recommended |
+|----------|-------------|
+| Verify SQL syntax and output format | pg_regress |
+| Test requiring PostgreSQL SPI/internal APIs | #[pg_test] |
+| Error message verification | pg_regress |
+| Pure Rust logic (calculations, etc.) | #[test] |
+| Background worker visibility | #[pg_test] |
+| GUC parameter SQL interface | pg_regress |
+| GUC parameter internal values | #[pg_test] |
+
+---
+
+## Summary
+
+| Topic | Decision | Key API |
+|-------|----------|---------|
+| ALTER SYSTEM | Raw pg_sys node construction | `AlterSystemSetConfigFile()` |
+| Checkpoint Stats | Direct pg_sys call with version gates | `pgstat_fetch_stat_checkpointer()` |
+| SIGHUP Signal | libc::kill() with atomic flag | `PostmasterPid`, `AtomicBool` |
+| max_wal_size Read | Direct static variable access | `pg_sys::max_wal_size_mb` |
+| GUC Registration | pgrx GucRegistry | `GucSetting`, `GucRegistry` |
+| Background Worker | pgrx BackgroundWorkerBuilder | `BackgroundWorker::wait_latch()` |
+| Transactions | Raw pg_sys transaction commands | `StartTransactionCommand()` |
+| CheckPointTimeout | extern C declaration | `static CheckPointTimeout: c_int` |
+| pgrx-tests shared_preload | postgresql_conf_options() | `vec!["shared_preload_libraries='pg_walrus'"]` |
+| pg_regress SQL tests | cargo pgrx regress | `tests/pg_regress/sql/*.sql` |
+
 All technical unknowns resolved. Ready for Phase 1 design artifacts.

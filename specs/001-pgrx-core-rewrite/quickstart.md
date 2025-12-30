@@ -235,3 +235,25 @@ extern "C" {
 ```
 
 This is safe because PostgreSQL exports `CheckPointTimeout` with `PGDLLIMPORT` and guarantees it is initialized before extension code runs. See `research.md R8` for full details.
+
+### Running pgrx Tests
+
+The pgrx-tests framework fully supports testing extensions that require `shared_preload_libraries`:
+
+```bash
+# Run all tests for PostgreSQL 17
+cargo pgrx test pg17
+
+# Run tests for all supported versions
+cargo pgrx test pg15 && cargo pgrx test pg16 && cargo pgrx test pg17 && cargo pgrx test pg18
+```
+
+**How it works**: The test framework uses `postgresql_conf_options()` to configure `shared_preload_libraries='pg_walrus'` in `postgresql.auto.conf` BEFORE starting PostgreSQL. This means:
+
+1. PostgreSQL starts with the extension loaded via `shared_preload_libraries`
+2. `_PG_init()` is called during postmaster startup
+3. Background worker is registered and starts after recovery
+4. `CREATE EXTENSION` creates SQL objects (extension already running)
+5. Tests can verify the background worker is visible in `pg_stat_activity`
+
+See `research.md R9` for full implementation details.

@@ -140,3 +140,72 @@ WHERE backend_type = 'pg_walrus';
 3. **Non-Blocking**: Worker must never block PostgreSQL operations
 4. **Idempotent**: Multiple identical resize attempts have no adverse effect
 5. **Crash-Safe**: PostgreSQL automatically restarts crashed workers
+
+## Testing with pgrx-tests
+
+The pgrx-tests framework supports testing background workers via `postgresql_conf_options()`. See research.md R9 for full details.
+
+### Required Configuration
+
+```rust
+#[cfg(test)]
+pub mod pg_test {
+    pub fn setup(_options: Vec<&str>) {}
+
+    pub fn postgresql_conf_options() -> Vec<&'static str> {
+        vec!["shared_preload_libraries='pg_walrus'"]
+    }
+}
+```
+
+### Critical: _PG_init() Must Check Loading Context
+
+The background worker registration MUST only occur when loaded via `shared_preload_libraries`:
+
+```rust
+#[pg_guard]
+pub extern "C-unwind" fn _PG_init() {
+    // Register GUCs always (available via SQL even without bgworker)
+    register_gucs();
+
+    // CRITICAL: Only register bgworker when loaded at postmaster startup
+    if unsafe { !pg_sys::process_shared_preload_libraries_in_progress } {
+        return;  // Skip bgworker registration
+    }
+
+    BackgroundWorkerBuilder::new("pg_walrus")
+        .set_function("walrus_worker_main")
+        .set_library("pg_walrus")
+        .set_type("pg_walrus")
+        .set_start_time(BgWorkerStartTime::RecoveryFinished)
+        .enable_shmem_access(None)
+        .load();
+}
+```
+
+### Test Execution Order
+
+```text
+1. pgrx-tests writes postgresql.auto.conf with shared_preload_libraries='pg_walrus'
+2. PostgreSQL starts → loads pg_walrus → _PG_init() registers bgworker
+3. Recovery finishes → bgworker spawns → enters main loop
+4. pgrx-tests runs CREATE EXTENSION pg_walrus → SQL objects created
+5. #[pg_test] tests run → can query pg_stat_activity to verify worker
+```
+
+### Verification Test
+
+```rust
+#[pg_test]
+fn test_background_worker_running() {
+    let result = Spi::get_one::<bool>(
+        "SELECT EXISTS(SELECT 1 FROM pg_stat_activity WHERE backend_type = 'pg_walrus')"
+    ).expect("query failed");
+    assert_eq!(result, Some(true), "pg_walrus background worker should be running");
+}
+```
+
+This test passes because:
+1. `postgresql_conf_options()` configured `shared_preload_libraries`
+2. `_PG_init()` detected startup context and registered bgworker
+3. Worker spawned after recovery and is visible in `pg_stat_activity`

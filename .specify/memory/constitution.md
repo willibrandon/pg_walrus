@@ -1,20 +1,24 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 1.3.0 → 1.4.0
-Bump rationale: MINOR - New principle added (No Simplification)
+Version change: 1.4.0 → 1.5.0
+Bump rationale: MINOR - Materially expanded VIII. Test Discipline with three-tier pgrx testing strategy
 
-Modified principles: None
+Modified principles:
+- VIII. Test Discipline - Expanded from basic test patterns to comprehensive three-tier testing strategy
+  (pgrx integration tests, pure Rust unit tests, pg_regress SQL tests)
 
 Added sections:
-- XIII. No Simplification (new - prohibits reducing scope or removing functionality to avoid debugging)
+- pg_regress SQL testing guidance under VIII. Test Discipline
+- Test type decision matrix
+- Multi-version testing requirements
 
 Removed sections: None
 
 Templates status:
-- ✅ plan-template.md - Compatible structure
-- ✅ spec-template.md - Compatible structure
-- ✅ tasks-template.md - Compatible structure
+- ✅ plan-template.md - Compatible (Testing field already generic)
+- ✅ spec-template.md - Compatible (no testing specifics)
+- ✅ tasks-template.md - Compatible (test tasks optional, pattern agnostic)
 
 Follow-up: None
 -->
@@ -318,73 +322,169 @@ fn get_checkpoint_count(stats: &PgStat_CheckpointerStats) -> i64 {
 
 ### VIII. Test Discipline
 
-Tests MUST be written for all functionality. pgrx provides specialized testing infrastructure.
+Tests MUST be written for all functionality. pg_walrus uses three complementary testing approaches.
 
-**Test Types:**
+**Three-Tier Testing Strategy:**
 
-1. **`#[pg_test]` - In-Database Tests**
-   ```rust
-   #[cfg(any(test, feature = "pg_test"))]
-   #[pg_schema]
-   mod tests {
-       use pgrx::prelude::*;
+| Tier | Framework | Use Case | Command |
+|------|-----------|----------|---------|
+| `#[pg_test]` | pgrx-tests | PostgreSQL integration (SPI, GUCs, worker visibility) | `cargo pgrx test pgXX` |
+| `#[test]` | Rust standard | Pure Rust logic (calculations, overflow) | `cargo test --lib` |
+| pg_regress | PostgreSQL | SQL-based verification (GUC syntax, extension loading) | `cargo pgrx regress pgXX` |
 
-       #[pg_test]
-       fn test_function() {
-           // Runs inside PostgreSQL transaction
-           let result = my_function();
-           assert_eq!(result, expected);
-       }
+---
 
-       #[pg_test(error = "expected error message")]
-       fn test_error_case() {
-           my_function_that_errors();
-       }
-   }
-   ```
+**Tier 1: `#[pg_test]` - PostgreSQL Integration Tests**
 
-2. **`#[test]` - Pure Rust Tests**
-   ```rust
-   #[test]
-   fn test_helper_logic() {
-       // No database access
-       assert_eq!(compute_size(100), 200);
-   }
-   ```
+Tests that run inside PostgreSQL with full access to SPI, GUCs, and system catalogs. Each test runs in a transaction that automatically rolls back (isolation).
 
-**Background Worker Testing:**
+```rust
+#[cfg(any(test, feature = "pg_test"))]
+#[pgrx::pg_schema]
+mod tests {
+    use pgrx::prelude::*;
+
+    #[pg_test]
+    fn test_guc_default() {
+        let result = Spi::get_one::<&str>("SHOW walrus.enable").unwrap();
+        assert_eq!(result, Some("on"));
+    }
+
+    #[pg_test(error = "invalid value for parameter")]
+    fn test_guc_invalid_value() -> Result<(), spi::Error> {
+        Spi::run("SET walrus.threshold = -1")
+    }
+}
+```
+
+**Background Worker Testing** requires `postgresql_conf_options()`:
 ```rust
 #[cfg(test)]
 pub mod pg_test {
+    pub fn setup(_options: Vec<&str>) {}
+
     pub fn postgresql_conf_options() -> Vec<&'static str> {
         vec!["shared_preload_libraries='pg_walrus'"]
     }
 }
 ```
 
+---
+
+**Tier 2: `#[test]` - Pure Rust Unit Tests**
+
+Tests for pure Rust logic that does not require PostgreSQL.
+
+```rust
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_new_size_calculation() {
+        // current_size * (delta + 1)
+        assert_eq!(calculate_new_size(1024, 3), 4096);
+    }
+
+    #[test]
+    fn test_overflow_protection() {
+        let result = calculate_new_size(i32::MAX / 2, 2);
+        assert_eq!(result, i32::MAX);
+    }
+}
+```
+
+---
+
+**Tier 3: pg_regress - SQL Regression Tests**
+
+SQL-based tests using PostgreSQL's native pg_regress framework. Tests verify extension behavior via SQL commands in psql with output comparison.
+
+**Directory structure:**
+```text
+tests/pg_regress/
+├── sql/               # Test SQL scripts
+│   ├── setup.sql      # Creates extension (runs first, special)
+│   ├── guc_params.sql # GUC parameter tests
+│   └── extension_info.sql
+├── expected/          # Expected output files
+│   ├── setup.out
+│   ├── guc_params.out
+│   └── extension_info.out
+└── results/           # Generated during tests (gitignored)
+```
+
+**setup.sql** (required - runs first when database is created):
+```sql
+CREATE EXTENSION pg_walrus;
+```
+
+**Test file pattern** (e.g., guc_params.sql):
+```sql
+-- Test default values
+SHOW walrus.enable;
+SHOW walrus.max;
+SHOW walrus.threshold;
+
+-- Test setting valid values
+SET walrus.enable = false;
+SHOW walrus.enable;
+```
+
+**pg_regress Commands:**
+```bash
+cargo pgrx regress pg17                 # Run all pg_regress tests
+cargo pgrx regress pg17 guc_params      # Run specific test
+cargo pgrx regress pg17 --auto          # Auto-accept new output
+cargo pgrx regress pg17 --resetdb       # Reset database first
+```
+
+---
+
+**Test Type Decision Matrix:**
+
+| Scenario | Required Test Type |
+|----------|-------------------|
+| GUC parameter defaults (internal values) | `#[pg_test]` |
+| GUC parameter SQL syntax and output | pg_regress |
+| Background worker visibility in pg_stat_activity | `#[pg_test]` |
+| Size calculation formula | `#[test]` |
+| Overflow protection | `#[test]` |
+| Error message format verification | pg_regress |
+| Extension metadata (pg_extension) | pg_regress |
+
+---
+
+**Multi-Version Testing (REQUIRED):**
+
+All tests MUST pass on all supported PostgreSQL versions:
+
+```bash
+# pgrx integration tests
+cargo pgrx test pg15 && cargo pgrx test pg16 && cargo pgrx test pg17 && cargo pgrx test pg18
+
+# pg_regress SQL tests
+cargo pgrx regress pg15 && cargo pgrx regress pg16 && cargo pgrx regress pg17 && cargo pgrx regress pg18
+```
+
+---
+
 **REQUIRED:**
 - `#[pg_test]` for all functions that interact with PostgreSQL
 - `#[test]` for pure Rust logic without database dependencies
-- Test each GUC parameter behavior
+- pg_regress for SQL interface verification
+- Test each GUC parameter behavior (both tiers: internal via `#[pg_test]`, SQL via pg_regress)
 - Test background worker lifecycle (start/stop)
 - Test error conditions and edge cases
 - Configure `postgresql_conf_options()` for background worker tests
-
-**Test Execution:**
-```bash
-cargo pgrx test pg15  # Test against PG 15
-cargo pgrx test pg16  # Test against PG 16
-cargo pgrx test pg17  # Test against PG 17
-cargo pgrx test pg18  # Test against PG 18
-```
+- All tests MUST pass on PostgreSQL 15, 16, 17, and 18
 
 **PROHIBITED:**
 - Skipping tests for any supported PostgreSQL version
 - `#[pg_test]` for logic that doesn't need database access
 - Missing tests for error paths
 - Tests that pass without implementation (false positives)
+- Using only one test tier when multiple are appropriate
 
-**Rationale**: PostgreSQL extensions are difficult to debug in production. Comprehensive testing catches issues before deployment.
+**Rationale**: PostgreSQL extensions are difficult to debug in production. The three-tier testing strategy ensures comprehensive coverage: Rust unit tests catch logic bugs early, pgrx integration tests verify PostgreSQL interaction, and pg_regress tests validate the SQL interface users interact with.
 
 ### IX. Anti-Patterns (PROHIBITED)
 
@@ -611,4 +711,4 @@ This constitution supersedes all other practices. Amendments require:
 
 **Guidance File**: See `CLAUDE.md` for runtime development guidance.
 
-**Version**: 1.4.0 | **Ratified**: 2025-12-29 | **Last Amended**: 2025-12-29
+**Version**: 1.5.0 | **Ratified**: 2025-12-29 | **Last Amended**: 2025-12-29
