@@ -174,7 +174,7 @@ The `walrus.history` table records all sizing decisions made by pg_walrus. The t
 walrus.history (
     id BIGSERIAL PRIMARY KEY,
     timestamp TIMESTAMPTZ NOT NULL DEFAULT now(),
-    action TEXT NOT NULL,           -- 'increase', 'decrease', or 'capped'
+    action TEXT NOT NULL,           -- 'increase', 'decrease', 'capped', 'dry_run', or 'skipped'
     old_size_mb INTEGER NOT NULL,
     new_size_mb INTEGER NOT NULL,
     forced_checkpoints BIGINT NOT NULL,
@@ -255,18 +255,60 @@ ORDER BY timestamp DESC;
 2. **Parameter tuning**: Experiment with `walrus.threshold` and `walrus.shrink_factor` values
 3. **Compliance auditing**: Generate a complete audit trail of all sizing decisions without system impact
 
-### Example
+## Rate Limiting
+
+Rate limiting prevents thrashing during unstable workloads by enforcing a cooldown period between adjustments and limiting the total number of adjustments per hour.
+
+### Configuration
 
 ```sql
--- Set maximum to 16GB
-ALTER SYSTEM SET walrus.max = '16GB';
+-- Set cooldown to 10 minutes between adjustments
+ALTER SYSTEM SET walrus.cooldown_sec = 600;
 
--- Increase threshold for batch-heavy workloads
-ALTER SYSTEM SET walrus.threshold = 5;
+-- Allow maximum 2 adjustments per hour
+ALTER SYSTEM SET walrus.max_changes_per_hour = 2;
 
 -- Reload configuration
 SELECT pg_reload_conf();
 ```
+
+### Monitoring Rate Limit State
+
+```sql
+-- Check current rate limiting status
+SELECT
+    status->>'cooldown_active' AS cooldown_active,
+    status->>'cooldown_remaining_sec' AS cooldown_remaining,
+    status->>'changes_this_hour' AS changes_this_hour,
+    status->>'hourly_limit_reached' AS hourly_limit_reached
+FROM walrus.status() AS status;
+```
+
+### Log Output
+
+When an adjustment is blocked by rate limiting:
+
+```
+LOG:  pg_walrus: adjustment blocked - cooldown active (150 seconds remaining)
+LOG:  pg_walrus: adjustment blocked - hourly limit reached (4 of 4)
+```
+
+### Skipped Adjustments in History
+
+Blocked adjustments are recorded in `walrus.history` with `action = 'skipped'`:
+
+```sql
+SELECT timestamp, reason, metadata->>'blocked_by' AS blocked_by
+FROM walrus.history
+WHERE action = 'skipped'
+ORDER BY timestamp DESC;
+```
+
+### Edge Cases
+
+- `walrus.cooldown_sec = 0`: Disables cooldown (adjustments can happen every interval)
+- `walrus.max_changes_per_hour = 0`: Blocks all automatic adjustments (manual only via `walrus.analyze(apply := true)`)
+- Manual adjustments via `walrus.analyze(apply := true)` bypass rate limiting
 
 ## SQL Functions
 
