@@ -8,6 +8,25 @@ pg_walrus is a Rust rewrite (using pgrx) of pg_walsizer - a PostgreSQL extension
 
 **Current state**: The repository contains the original C implementation (pg_walsizer) and design documents for the Rust conversion. The Rust implementation has not yet been created.
 
+## No Regression Policy
+
+**ABSOLUTE PROHIBITION:**
+- Recommending older Rust editions (e.g., "use edition 2021 instead of 2024")
+- Recommending older language/framework versions to avoid compatibility issues
+- Downgrading dependencies to avoid fixing code
+- Any suggestion to use older tooling when newer versions have stricter requirements
+
+**REQUIRED behavior:**
+- When newer editions/versions have stricter requirements, ADAPT THE CODE
+- Use fully qualified syntax when trait resolution is ambiguous (e.g., `GucSetting::<bool>::new(true)` not `GucSetting::new(true)`)
+- Fix lifetime issues, not avoid them by downgrading
+- Debug and resolve compatibility issues, never regress
+
+**Rust 2024 Edition Specific:**
+- Method resolution is stricter - use turbofish syntax: `Type::<Generic>::method()`
+- Never suggest "use edition 2021" as a solution
+- pgrx `GucSetting` requires: `GucSetting::<bool>::new()`, `GucSetting::<i32>::new()`, etc.
+
 ## No Simplification Policy
 
 **ABSOLUTE PROHIBITION:**

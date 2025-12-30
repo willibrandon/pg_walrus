@@ -1,24 +1,21 @@
 <!--
 SYNC IMPACT REPORT
 ==================
-Version change: 1.4.0 → 1.5.0
-Bump rationale: MINOR - Materially expanded VIII. Test Discipline with three-tier pgrx testing strategy
+Version change: 1.5.0 → 1.6.0
+Bump rationale: MINOR - Added XIV. No Regression principle prohibiting version downgrades
 
-Modified principles:
-- VIII. Test Discipline - Expanded from basic test patterns to comprehensive three-tier testing strategy
-  (pgrx integration tests, pure Rust unit tests, pg_regress SQL tests)
+Modified principles: None
 
 Added sections:
-- pg_regress SQL testing guidance under VIII. Test Discipline
-- Test type decision matrix
-- Multi-version testing requirements
+- XIV. No Regression - Prohibits recommending older editions/versions, requires adapting code
+  to stricter newer requirements, Rust 2024 Edition specific guidance
 
 Removed sections: None
 
 Templates status:
-- ✅ plan-template.md - Compatible (Testing field already generic)
-- ✅ spec-template.md - Compatible (no testing specifics)
-- ✅ tasks-template.md - Compatible (test tasks optional, pattern agnostic)
+- ✅ plan-template.md - Compatible (Technical Context already version-agnostic)
+- ✅ spec-template.md - Compatible (no version specifics)
+- ✅ tasks-template.md - Compatible (no version specifics)
 
 Follow-up: None
 -->
@@ -644,6 +641,42 @@ When encountering difficulty, increase effort. Never reduce scope.
 
 **Rationale**: Reducing scope to avoid difficulty produces incomplete software. Debugging and fixing problems is the work. Removing functionality to make problems disappear hides rather than solves them.
 
+### XIV. No Regression (NON-NEGOTIABLE)
+
+Never recommend older language/framework versions to avoid compatibility issues. Adapt code to stricter requirements.
+
+**ABSOLUTE PROHIBITION:**
+- Recommending older Rust editions (e.g., "use edition 2021 instead of 2024")
+- Recommending older language/framework versions to avoid compatibility issues
+- Downgrading dependencies to avoid fixing code
+- Any suggestion to use older tooling when newer versions have stricter requirements
+- Phrases like "try edition 2021", "downgrade to version X", "use the older API"
+
+**REQUIRED behavior:**
+- When newer editions/versions have stricter requirements, ADAPT THE CODE
+- Use fully qualified syntax when trait resolution is ambiguous (e.g., `GucSetting::<bool>::new(true)` not `GucSetting::new(true)`)
+- Fix lifetime issues, not avoid them by downgrading
+- Debug and resolve compatibility issues, never regress
+- When a newer compiler/runtime rejects code, fix the code to satisfy the new requirements
+
+**Rust 2024 Edition Specific:**
+- Method resolution is stricter - use turbofish syntax: `Type::<Generic>::method()`
+- Never suggest "use edition 2021" as a solution
+- pgrx `GucSetting` requires: `GucSetting::<bool>::new()`, `GucSetting::<i32>::new()`, etc.
+- Trait method disambiguation may require fully qualified paths
+- When compiler errors mention ambiguous methods, use explicit type annotations or turbofish
+
+**Version Migration Protocol:**
+
+When encountering build failures after version upgrades:
+1. Read the error message carefully - identify what changed
+2. Research the new API/syntax requirements
+3. Update the code to comply with new requirements
+4. Verify the fix works with the newer version
+5. Do NOT suggest reverting to an older version
+
+**Rationale**: Downgrading versions to avoid fixing code creates technical debt and prevents benefiting from improvements in newer releases. The solution to stricter requirements is better code, not older tooling.
+
 ## Additional Constraints
 
 ### Technology Stack
@@ -711,4 +744,4 @@ This constitution supersedes all other practices. Amendments require:
 
 **Guidance File**: See `CLAUDE.md` for runtime development guidance.
 
-**Version**: 1.5.0 | **Ratified**: 2025-12-29 | **Last Amended**: 2025-12-29
+**Version**: 1.6.0 | **Ratified**: 2025-12-29 | **Last Amended**: 2025-12-29

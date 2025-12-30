@@ -23,18 +23,20 @@ def main():
     try:
         data = json.load(sys.stdin)
     except json.JSONDecodeError as e:
-        print(f"Error parsing input: {e}", file=sys.stderr)
+        print(json.dumps({"ok": True}))
         sys.exit(1)
 
     # Check if we're already in a retry loop to prevent infinite loops
     stop_hook_active = data.get('stop_hook_active', False)
     if stop_hook_active:
         # Already retrying - allow to prevent infinite loop
+        print(json.dumps({"ok": True}))
         sys.exit(0)
 
     # Get the transcript path
     transcript_path = data.get('transcript_path', '')
     if not transcript_path:
+        print(json.dumps({"ok": True}))
         sys.exit(0)
 
     # Read the transcript to get Claude's last response
@@ -42,6 +44,7 @@ def main():
         with open(transcript_path, 'r') as f:
             transcript_lines = f.readlines()
     except Exception:
+        print(json.dumps({"ok": True}))
         sys.exit(0)
 
     # Find the last assistant message
@@ -60,6 +63,7 @@ def main():
             continue
 
     if not last_response:
+        print(json.dumps({"ok": True}))
         sys.exit(0)
 
     # DEFERRAL PATTERNS - PROHIBITED
@@ -130,9 +134,10 @@ def main():
     if violations:
         unique_violations = list(set(violations))[:5]
         error_msg = f"CONSTITUTION VIOLATION DETECTED. You MUST fix this and retry.\nViolations: {', '.join(unique_violations)}\n\nYou are PROHIBITED from deferring requirements. Solve the problem NOW or state BLOCKER: [specific issue] and ask for a decision."
-        print(error_msg, file=sys.stderr)
+        print(json.dumps({"ok": False, "error": error_msg}))
         sys.exit(2)  # Exit code 2 = block and force retry
 
+    print(json.dumps({"ok": True}))
     sys.exit(0)
 
 if __name__ == '__main__':
